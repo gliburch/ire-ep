@@ -20,6 +20,9 @@
   },
   "homepage": "https://github.com/gliburch/ire-ep#readme",
   "dependencies": {
-    "fastify": "^5.8.5"
+    "axios": "^1.15.2",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.8.5",
+    "mongoose": "^9.5.0"
   }
 }
