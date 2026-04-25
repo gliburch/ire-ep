@@ -1,8 +1,44 @@
-const axios = require('axios');
-const apiConfig = require('../config/apiConfig');
-const Product = require('../models/Product');
+const axios = require("axios");
+const apiConfig = require("../config/apiConfig");
+const Product = require("../models/Product");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * 네이버 EP 상품 ID 정제
+ * - 영문, 숫자, -(hyphen), _(underscore), 공백만 허용
+ * - 최대 50자
+ */
+function sanitizeId(value) {
+  if (!value) {
+    throw new Error("상품 ID가 없습니다");
+  }
+  const sanitized = String(value).replace(/[^a-zA-Z0-9\-_ ]/g, "");
+  if (!sanitized) {
+    throw new Error("유효한 상품 ID가 없습니다");
+  }
+  return sanitized.slice(0, 50);
+}
+
+/**
+ * 네이버 EP 상품명 정제
+ * - 제어문자(탭, 엔터 등) 제거
+ * - 연속 공백 정리
+ * - 최대 100자 (글자 단위)
+ */
+function sanitizeTitle(value) {
+  if (!value) {
+    throw new Error("상품명이 없습니다");
+  }
+  const sanitized = String(value)
+    .replace(/[\t\n\r\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!sanitized) {
+    throw new Error("유효한 상품명이 없습니다");
+  }
+  return sanitized.slice(0, 100);
+}
 
 /**
  * 모드투어 API에서 상품 정보 조회
@@ -14,12 +50,13 @@ async function fetchProductFromApi(productNo) {
   const response = await axios.get(url, {
     headers: {
       ...headers,
-      'x-incomming-pathname': `/package/${productNo}`,
+      "x-incomming-pathname": `/package/${productNo}`,
     },
   });
 
   if (!response.data || !response.data.isOK) {
-    const errorMsg = response.data?.errorMessages?.join(', ') || 'Unknown error';
+    const errorMsg =
+      response.data?.errorMessages?.join(", ") || "Unknown error";
     throw new Error(`Invalid API response: ${errorMsg}`);
   }
 
@@ -34,125 +71,80 @@ function transformToEpData(rawData) {
   const productMaster = data.productMaster || [];
   const representativeProduct = data.representativeProduct || [];
   const listAreaImages = data.listAreaImages || [];
-  const themes = data.themes || [];
   const badges = data.badges || {};
-  const visitCities = data.visitCities || [];
-  const similarWords = data.similarWords || [];
-
   // 대표 이미지: representativeProduct 첫 번째 또는 productMaster 이미지
   const mainImage =
-    representativeProduct[0]?.url || productMaster[0]?.image || '';
+    representativeProduct[0]?.url || productMaster[0]?.image || "";
+
+  const attribute = data.groupBriefKeyword.replace("#", "").replace(" ", "^");
 
   // 추가 이미지: representativeProduct (첫 번째 제외) + listAreaImages
+  // 최대 10개, 2000자 제한
   const additionalImages = [
-    ...representativeProduct.slice(1).map((p) => p.url).filter(Boolean),
+    ...representativeProduct
+      .slice(1)
+      .map((p) => p.url)
+      .filter(Boolean),
     ...listAreaImages.map((p) => p.image).filter(Boolean),
-  ].join('|');
-
-  // themes를 문자열로
-  const themeNames = themes.map((t) => t.themeName || t).join(',');
-
-  // goods_type 조합
-  const goodsTypeParts = [
-    data.isDomestic ? '국내' : '해외',
-    data.groupClassification,
-    data.transportationMethod,
-    data.travelType,
-    themeNames,
-  ].filter(Boolean);
-
-  // origin 조합
-  const citiesStr = visitCities.map((c) => c.cityName || c).join(',');
-  const originParts = [data.category2, data.countryUnique, citiesStr].filter(
-    Boolean
-  );
-
-  // event_words 조합
-  const eventWordsParts = [
-    data.groupBriefKeyword,
-    data.promotionName,
-    data.tags,
-    similarWords.join(','),
-    data.descriptions,
-  ].filter(Boolean);
+  ]
+    .slice(0, 10)
+    .join("|")
+    .slice(0, 2000);
 
   // search_tag 조합
-  const searchTagParts = [data.groupBriefKeyword, data.keyword, data.tags].filter(
-    Boolean
-  );
-
-  // attribute 조합
-  const attributeParts = [
-    data.includedNote,
-    data.unincludedNote,
-    data.noticeNote,
-    data.specificNote,
-  ].filter(Boolean);
-
-  // option_detail 조합
-  const optionDetailParts = [
-    data.flightCode,
-    data.departureFlight,
-    data.arrivalFlight,
-    data.transportName,
-  ].filter(Boolean);
+  const searchTag = data.keyword
+    .split(",")
+    .slice(0, 10)
+    .join("|")
+    .slice(0, 100);
 
   // 링크 생성
-  const groupNumber = data.groupNumber || '';
+  const groupNumber = data.groupNumber || "";
   const link = groupNumber
     ? `https://ire.modetour.co.kr/package/${groupNumber}`
-    : '';
+    : "";
+
+  const mobileLink = groupNumber
+    ? `https://m-ire.modetour.co.kr/package/${groupNumber}`
+    : "";
 
   // coupon 조합
   const couponParts = [];
-  if (badges.existsCoupon) couponParts.push('쿠폰');
+  if (badges.existsCoupon) couponParts.push("쿠폰");
   if (data.promotionName) couponParts.push(data.promotionName);
 
+  // ID 생성: productCode_groupNumber_PGE_IRE
+  const productCode = data.productCode || data.productCode2 || "";
+  const rawId = `${productCode}_${groupNumber}_PGE_IRE`;
+
   return {
-    id: data.productCode2 || String(data.groupNumber) || '',
-    title: data.productName || '',
-    price_pc: data.sellingPriceAdultTotalAmount || 0,
-    price_mobile: data.sellingPriceAdultTotalAmount || 0,
-    normal_price: data.productPriceAdultTotalAmount || 0,
+    // 필수: id, title, price_pc, link, image_link, category_name1, shipping
+    id: sanitizeId(rawId),
+    title: data.productName || "",
+    price_pc: data.benefitPriceInfo?.price || 1,
+    benefit_price: data.benefitPriceInfo?.discountPrice || 1,
+    normal_price: data.productPriceAdultTotalAmount || 1,
     link: link,
-    mobile_link: link,
+    mobile_link: mobileLink,
     image_link: mainImage,
     add_image_link: additionalImages,
-    category_name1: data.category1 || '',
-    category_name2: data.category2 || '',
-    category_name3: data.category3 || '',
-    category_name4: themeNames || data.groupClassification || '',
-    product_flag: themeNames || data.groupClassification || '',
-    goods_type: goodsTypeParts.join(' > '),
-    model_number: data.productCode2 || data.computedProductCode || '',
-    brand: data.transportName || data.marketingAirName || '',
-    maker: data.transportName || data.marketingAirName || '',
-    origin: originParts.join(' > '),
-    event_words: eventWordsParts.join(' | '),
-    coupon: couponParts.join(' | '),
-    point: data.accumulationExpectedTourMileage || 0,
-    search_tag: searchTagParts.join(','),
-    group_id: data.masterCodeId || String(data.groupNumber) || '',
-    minimum_purchase_quantity: data.minimumDepartureNumberOfPeople || 1,
-    delivery_grade: [data.reserveStatusKorean, data.productState?.state]
-      .filter(Boolean)
-      .join(' | '),
-    delivery_detail: [
-      data.departureDate,
-      data.arrivalDate,
-      data.travelPeriod,
-      data.departureCityName,
-      data.arrivalCityName,
-    ]
-      .filter(Boolean)
-      .join(' | '),
-    attribute: attributeParts.join(' | '),
-    option_detail: optionDetailParts.join(' | '),
-    seller_id: groupNumber,
-    naver_category: '',
-    condition: 'new',
-    age_group: '성인',
-    gender: '남녀공용',
+    category_name1: "여가/생활편의",
+    category_name2: "해외여행",
+    category_name3: "해외패키지/기타",
+    category_name4:
+      data.koreanArrivalCityName +
+      "출발" +
+      data.arrivalCityName +
+      data.groupClassification,
+    naver_category: 50007257,
+    brand: "모두투어",
+    brand_certification: "Y",
+    maker: "모두투어",
+    origin: "대한민국",
+    search_tag: searchTag,
+    shipping: 0,
+    attribute: attribute,
+    gender: "남녀공용",
   };
 }
 
@@ -170,10 +162,12 @@ async function scrapeAndSave(productNo) {
       productNo: Number(productNo),
       rawData,
       epData,
-      departureDate: rawData.departureDate ? new Date(rawData.departureDate) : null,
+      departureDate: rawData.departureDate
+        ? new Date(rawData.departureDate)
+        : null,
       arrivalDate: rawData.arrivalDate ? new Date(rawData.arrivalDate) : null,
     },
-    { upsert: true, new: true }
+    { upsert: true, new: true },
   );
 
   return product;
@@ -212,10 +206,7 @@ async function scrapeRange(startNo, count = 100) {
       results.success.push(currentNo);
       successCount++;
     } catch (err) {
-      if (
-        err.response?.status === 404 ||
-        err.message.includes('Invalid')
-      ) {
+      if (err.response?.status === 404 || err.message.includes("Invalid")) {
         results.skipped.push(currentNo);
       } else {
         results.failed.push({ productNo: currentNo, error: err.message });
