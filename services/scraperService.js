@@ -76,7 +76,11 @@ function transformToEpData(rawData) {
   const mainImage =
     representativeProduct[0]?.url || productMaster[0]?.image || "";
 
-  const attribute = data.groupBriefKeyword.replace("#", "").replace(" ", "^");
+  // 속성: # 제거, 공백을 ^로 변환, 500자 제한
+  const attribute = (data.groupBriefKeyword || "")
+    .replace(/#/g, "")
+    .replace(/\s+/g, "^")
+    .slice(0, 500);
 
   // 추가 이미지: representativeProduct (첫 번째 제외) + listAreaImages
   // 최대 10개, 2000자 제한
