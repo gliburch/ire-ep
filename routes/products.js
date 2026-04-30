@@ -39,24 +39,71 @@ async function productsRoutes(fastify) {
     return { success: true, results };
   });
 
-  // 범위 스크래핑 (최신 상품부터 역순)
-  fastify.post("/products/scrape-range", async (request, reply) => {
-    const { startNo, count } = request.query;
+  // 마지막 수집 이후 새 상품 가져오기
+  fastify.post("/products/scrape-latest", async (request, reply) => {
+    const maxRetry = parseInt(request.query.maxRetry, 10) || 10;
 
-    if (!startNo) {
-      return reply.code(400).send({ error: "startNo is required" });
-    }
+    // DB에서 최대 productNo 조회
+    const lastProduct = await Product.findOne()
+      .sort({ productNo: -1 })
+      .select("productNo")
+      .lean();
 
-    let currentNo = parseInt(startNo, 10);
-    const targetCount = parseInt(count, 10) || 100;
-    let successCount = 0;
+    let currentNo = lastProduct ? lastProduct.productNo + 1 : 1;
+    let consecutiveFailures = 0;
     const results = { success: [], failed: [], skipped: [] };
 
-    while (successCount < targetCount && currentNo > 0) {
+    while (consecutiveFailures < maxRetry) {
       try {
         await scraperService.scrapeAndSave(currentNo.toString());
         results.success.push(currentNo);
-        successCount++;
+        consecutiveFailures = 0;
+      } catch (err) {
+        if (err.response?.status === 404 || err.message.includes("Invalid")) {
+          results.skipped.push(currentNo);
+          consecutiveFailures++;
+        } else {
+          results.failed.push({ productNo: currentNo, error: err.message });
+          consecutiveFailures++;
+        }
+      }
+      currentNo++;
+      await sleep(100);
+    }
+
+    return {
+      success: true,
+      summary: {
+        startedFrom: lastProduct ? lastProduct.productNo + 1 : 1,
+        successCount: results.success.length,
+        failedCount: results.failed.length,
+        skippedCount: results.skipped.length,
+      },
+      results,
+    };
+  });
+
+  // 범위 스크래핑 (startNo ~ endNo 순차 수집)
+  fastify.post("/products/scrape-range", async (request, reply) => {
+    const { startNo, endNo } = request.query;
+
+    if (!startNo || !endNo) {
+      return reply.code(400).send({ error: "startNo and endNo are required" });
+    }
+
+    const start = parseInt(startNo, 10);
+    const end = parseInt(endNo, 10);
+
+    if (start > end) {
+      return reply.code(400).send({ error: "startNo must be <= endNo" });
+    }
+
+    const results = { success: [], failed: [], skipped: [] };
+
+    for (let currentNo = start; currentNo <= end; currentNo++) {
+      try {
+        await scraperService.scrapeAndSave(currentNo.toString());
+        results.success.push(currentNo);
       } catch (err) {
         if (err.response?.status === 404 || err.message.includes("Invalid")) {
           results.skipped.push(currentNo);
@@ -64,13 +111,13 @@ async function productsRoutes(fastify) {
           results.failed.push({ productNo: currentNo, error: err.message });
         }
       }
-      currentNo--;
       await sleep(100);
     }
 
     return {
       success: true,
       summary: {
+        range: { startNo: start, endNo: end },
         successCount: results.success.length,
         failedCount: results.failed.length,
         skippedCount: results.skipped.length,
