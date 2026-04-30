@@ -2,8 +2,6 @@ const axios = require("axios");
 const apiConfig = require("../config/apiConfig");
 const Product = require("../models/Product");
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
  * 네이버 EP 상품 ID 정제
  * - 영문, 숫자, -(hyphen), _(underscore), 공백만 허용
@@ -177,56 +175,8 @@ async function scrapeAndSave(productNo) {
   return product;
 }
 
-/**
- * 여러 상품 일괄 스크래핑
- */
-async function scrapeMultiple(productNos) {
-  const results = { success: [], failed: [] };
-
-  for (const productNo of productNos) {
-    try {
-      const product = await scrapeAndSave(productNo);
-      results.success.push({ productNo, id: product._id });
-    } catch (err) {
-      results.failed.push({ productNo, error: err.message });
-    }
-    await sleep(100); // Rate limiting
-  }
-
-  return results;
-}
-
-/**
- * 범위 스크래핑 (최신 상품부터 역순)
- */
-async function scrapeRange(startNo, count = 100) {
-  let currentNo = parseInt(startNo, 10);
-  let successCount = 0;
-  const results = { success: [], failed: [], skipped: [] };
-
-  while (successCount < count && currentNo > 0) {
-    try {
-      await scrapeAndSave(currentNo.toString());
-      results.success.push(currentNo);
-      successCount++;
-    } catch (err) {
-      if (err.response?.status === 404 || err.message.includes("Invalid")) {
-        results.skipped.push(currentNo);
-      } else {
-        results.failed.push({ productNo: currentNo, error: err.message });
-      }
-    }
-    currentNo--;
-    await sleep(100); // Rate limiting
-  }
-
-  return results;
-}
-
 module.exports = {
   fetchProductFromApi,
   transformToEpData,
   scrapeAndSave,
-  scrapeMultiple,
-  scrapeRange,
 };

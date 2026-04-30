@@ -1,13 +1,15 @@
-const Product = require('../models/Product');
-const scraperService = require('../services/scraperService');
+const Product = require("../models/Product");
+const scraperService = require("../services/scraperService");
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function productsRoutes(fastify) {
   // 단일 상품 스크래핑
-  fastify.post('/products/scrape', async (request, reply) => {
+  fastify.post("/products/scrape", async (request, reply) => {
     const { productNo } = request.query;
 
     if (!productNo) {
-      return reply.code(400).send({ error: 'productNo is required' });
+      return reply.code(400).send({ error: "productNo is required" });
     }
 
     const product = await scraperService.scrapeAndSave(productNo);
@@ -15,29 +17,57 @@ async function productsRoutes(fastify) {
   });
 
   // 여러 상품 일괄 스크래핑
-  fastify.post('/products/scrape-bulk', async (request, reply) => {
+  fastify.post("/products/scrape-bulk", async (request, reply) => {
     const { productNos } = request.body || {};
 
     if (!productNos || !Array.isArray(productNos) || productNos.length === 0) {
-      return reply.code(400).send({ error: 'productNos array is required' });
+      return reply.code(400).send({ error: "productNos array is required" });
     }
 
-    const results = await scraperService.scrapeMultiple(productNos);
+    const results = { success: [], failed: [] };
+
+    for (const productNo of productNos) {
+      try {
+        const product = await scraperService.scrapeAndSave(productNo);
+        results.success.push({ productNo, id: product._id });
+      } catch (err) {
+        results.failed.push({ productNo, error: err.message });
+      }
+      await sleep(100);
+    }
+
     return { success: true, results };
   });
 
   // 범위 스크래핑 (최신 상품부터 역순)
-  fastify.post('/products/scrape-range', async (request, reply) => {
+  fastify.post("/products/scrape-range", async (request, reply) => {
     const { startNo, count } = request.query;
 
     if (!startNo) {
-      return reply.code(400).send({ error: 'startNo is required' });
+      return reply.code(400).send({ error: "startNo is required" });
     }
 
-    const results = await scraperService.scrapeRange(
-      startNo,
-      parseInt(count, 10) || 100
-    );
+    let currentNo = parseInt(startNo, 10);
+    const targetCount = parseInt(count, 10) || 100;
+    let successCount = 0;
+    const results = { success: [], failed: [], skipped: [] };
+
+    while (successCount < targetCount && currentNo > 0) {
+      try {
+        await scraperService.scrapeAndSave(currentNo.toString());
+        results.success.push(currentNo);
+        successCount++;
+      } catch (err) {
+        if (err.response?.status === 404 || err.message.includes("Invalid")) {
+          results.skipped.push(currentNo);
+        } else {
+          results.failed.push({ productNo: currentNo, error: err.message });
+        }
+      }
+      currentNo--;
+      await sleep(100);
+    }
+
     return {
       success: true,
       summary: {
