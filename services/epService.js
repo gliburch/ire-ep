@@ -1,4 +1,10 @@
 const Product = require("../models/Product");
+const {
+  createClient,
+  uploadImageWithClient,
+  clearCache,
+  FTP_BASE_URL,
+} = require("./ftpService");
 
 /**
  * TSV용 제어문자 제거
@@ -70,8 +76,93 @@ async function generateEpFile() {
   return [headerRow, ...dataRows].join("\n");
 }
 
+/**
+ * 상품 이미지를 FTP에 동기화
+ * - 모두투어 이미지를 다운로드하여 FTP에 업로드
+ * - epData의 이미지 URL을 FTP URL로 변경
+ * @param {number} limit - 처리할 상품 수 제한 (0 = 전체)
+ */
+async function syncProductImages(limit = 0) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let query = Product.find({
+    departureDate: { $gte: today },
+    epData: { $exists: true },
+  });
+
+  if (limit > 0) {
+    query = query.limit(limit);
+  }
+
+  const products = await query;
+
+  clearCache();
+
+  let synced = 0;
+  let failed = 0;
+  let client = null;
+
+  try {
+    client = await createClient();
+
+    for (const product of products) {
+      try {
+        const epData = product.epData;
+        let updated = false;
+
+        // 메인 이미지 동기화
+        if (epData.image_link && !epData.image_link.includes("cafe24.com")) {
+          const newUrl = await uploadImageWithClient(client, epData.image_link);
+          if (newUrl) {
+            epData.image_link = newUrl;
+            updated = true;
+          }
+        }
+
+        // 추가 이미지 동기화
+        if (epData.add_image_link && !epData.add_image_link.includes("cafe24.com")) {
+          const urls = epData.add_image_link.split("|").filter(Boolean);
+          const newUrls = [];
+
+          for (const url of urls) {
+            const newUrl = await uploadImageWithClient(client, url);
+            newUrls.push(newUrl || url);
+          }
+
+          epData.add_image_link = newUrls.join("|");
+          updated = true;
+        }
+
+        if (updated) {
+          product.epData = epData;
+          product.markModified("epData");
+          await product.save();
+          synced++;
+        }
+      } catch (err) {
+        console.error(`Failed to sync product ${product.productNo}:`, err.message);
+        failed++;
+
+        // 연결 끊김 시 재연결
+        if (err.message.includes("Timeout") || err.message.includes("closed")) {
+          try {
+            client.close();
+          } catch {}
+          client = await createClient();
+        }
+      }
+    }
+  } finally {
+    if (client) client.close();
+  }
+
+  return { total: products.length, synced, failed };
+}
+
 module.exports = {
   sanitizeForTsv,
   EP_HEADERS,
   generateEpFile,
+  syncProductImages,
 };
