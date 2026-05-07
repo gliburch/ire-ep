@@ -5,6 +5,10 @@ const {
   clearCache,
   FTP_BASE_URL,
 } = require("./ftpService");
+const {
+  searchProductMaster,
+  transformProductMasterToEpData,
+} = require("./scraperService");
 
 /**
  * TSV용 제어문자 제거
@@ -160,9 +164,63 @@ async function syncProductImages(limit = 0) {
   return { total: products.length, synced, failed };
 }
 
+/**
+ * ProductMaster API 기반 EP 파일 생성
+ * @param {number[]} areaNos - 조회할 지역 번호 배열
+ * @param {string} startDate - 검색 시작일 (YYYY-MM-DD)
+ * @param {string} endDate - 검색 종료일 (YYYY-MM-DD)
+ */
+async function generateEpFileFromProductMasters(areaNos, startDate, endDate) {
+  const allEpData = [];
+  const seenIds = new Set();
+
+  for (const areaNo of areaNos) {
+    let pageNo = 1;
+    let totalPages = 1;
+
+    do {
+      const result = await searchProductMaster({
+        areaNo,
+        searchFrom: startDate,
+        searchTo: endDate,
+        pageNo,
+        pageSize: 100,
+      });
+
+      totalPages = result.result.totalPages || 1;
+      const masters = result.result.productMaster || [];
+
+      for (const master of masters) {
+        try {
+          const epData = transformProductMasterToEpData(master);
+
+          // 중복 제거 (같은 masterCode가 여러 지역에 나올 수 있음)
+          if (!seenIds.has(epData.id)) {
+            seenIds.add(epData.id);
+            allEpData.push(epData);
+          }
+        } catch (err) {
+          console.error(`Failed to transform master ${master.masterCode}:`, err.message);
+        }
+      }
+
+      pageNo++;
+    } while (pageNo <= totalPages);
+  }
+
+  const headerRow = EP_HEADERS.join("\t");
+  const dataRows = allEpData.map((ep) => productToTsvRow(ep));
+
+  return {
+    content: [headerRow, ...dataRows].join("\n"),
+    count: allEpData.length,
+  };
+}
+
 module.exports = {
   sanitizeForTsv,
   EP_HEADERS,
   generateEpFile,
+  generateEpFileFromProductMasters,
   syncProductImages,
 };

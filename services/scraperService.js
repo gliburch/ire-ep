@@ -69,6 +69,73 @@ async function fetchProductFromApi(productNo) {
 }
 
 /**
+ * ProductMaster를 네이버 EP 형식으로 변환
+ */
+function transformProductMasterToEpData(productMaster) {
+  const masterCode = productMaster.masterCode || "";
+  const masterCodeNo = productMaster.masterCodeNo || "";
+
+  // ID 생성: masterCode_PGE_IRE
+  const rawId = `${masterCode}_PGE_IRE`;
+
+  // 링크 생성
+  const link = masterCodeNo
+    ? `https://ire.modetour.co.kr/product-common/${masterCodeNo}?type=group`
+    : "";
+  const mobileLink = masterCodeNo
+    ? `https://m-ire.modetour.co.kr/product-common/${masterCodeNo}?type=group`
+    : "";
+
+  // tags에서 search_tag 생성: # 제거, | 구분
+  const tags = productMaster.tags || "";
+  const searchTag = tags
+    .split("#")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 10)
+    .join("|")
+    .slice(0, 100);
+
+  // attribute: tags에서 # 제거, ^로 구분
+  const attribute = tags
+    .replace(/#/g, "")
+    .replace(/\s+/g, "^")
+    .slice(0, 500);
+
+  // 출발지 + 지역명 조합
+  const depatureFrom = (productMaster.depatureFrom || ["서울"])[0];
+  const areas = (productMaster.areas || []).map((a) => a.name).join("/");
+
+  // 여행 기간
+  const dates = productMaster.dates || [];
+  const periodInfo = dates.length > 0
+    ? `${dates[0].night}박${dates[0].days}일`
+    : "";
+
+  return {
+    id: sanitizeId(rawId),
+    title: sanitizeTitle(productMaster.masterProductName || ""),
+    price_pc: productMaster.price || 1,
+    link,
+    mobile_link: mobileLink,
+    image_link: productMaster.image || "",
+    category_name1: "여가/생활편의",
+    category_name2: "해외여행",
+    category_name3: "해외패키지/기타",
+    category_name4: `${depatureFrom}출발 ${areas} ${periodInfo}`.trim(),
+    naver_category: 50007257,
+    brand: "모두투어",
+    brand_certification: "Y",
+    maker: "이레투어클럽",
+    origin: "대한민국",
+    search_tag: searchTag,
+    shipping: 0,
+    attribute,
+    gender: "남녀공용",
+  };
+}
+
+/**
  * rawData를 네이버 EP 형식으로 변환
  */
 function transformToEpData(rawData) {
@@ -439,6 +506,7 @@ async function fetchAllProductDetails(productMaster, options) {
 module.exports = {
   fetchProductFromApi,
   transformToEpData,
+  transformProductMasterToEpData,
   scrapeAndSave,
   searchProductMaster,
   searchMinPriceDates,
