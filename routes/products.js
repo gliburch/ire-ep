@@ -126,6 +126,56 @@ async function productsRoutes(fastify) {
     };
   });
 
+  // 상품 목록 검색 (SearchProductMaster)
+  fastify.post("/products/search", async (request, reply) => {
+    const { areaNo, searchFrom, searchTo, pageNo, pageSize, sortType } =
+      request.body || {};
+
+    if (!areaNo || !searchFrom || !searchTo) {
+      return reply
+        .code(400)
+        .send({ error: "areaNo, searchFrom, searchTo are required" });
+    }
+
+    const result = await scraperService.searchProductMaster({
+      areaNo,
+      searchFrom,
+      searchTo,
+      pageNo,
+      pageSize,
+      sortType,
+    });
+
+    return result;
+  });
+
+  // 단일 productMaster 전체 상세 수집
+  fastify.post("/products/scrape-master", async (request, reply) => {
+    const { productMaster, startDate, endDate, delayMs } = request.body || {};
+
+    if (!productMaster || !startDate || !endDate) {
+      return reply
+        .code(400)
+        .send({ error: "productMaster, startDate, endDate are required" });
+    }
+
+    const result = await scraperService.fetchAllProductDetails(productMaster, {
+      startDate,
+      endDate,
+      delayMs,
+    });
+
+    return {
+      success: true,
+      summary: {
+        totalDates: result.totalDates,
+        successCount: result.results.success.length,
+        failedCount: result.results.failed.length,
+      },
+      results: result.results,
+    };
+  });
+
   // 상품 조회
   fastify.get('/products/:productNo', async (request, reply) => {
     const { productNo } = request.params;

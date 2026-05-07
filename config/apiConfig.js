@@ -1,7 +1,12 @@
 module.exports = {
   modetour: {
     baseUrl: 'https://onbp-api.modetour.com',
-    endpoint: '/Package/GetProductDetailInfo',
+    endpoints: {
+      productDetail: '/Package/GetProductDetailInfo',
+      searchProductMaster: '/Package/SearchProductMaster',
+      searchMinPriceDates: '/Package/SearchMinPriceDates',
+      searchProductDates: '/Package/SearchProductDates',
+    },
     headers: {
       'ModeWebApiReqHeader': JSON.stringify({
         WebSiteNo: 6352,

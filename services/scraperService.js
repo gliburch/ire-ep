@@ -39,11 +39,18 @@ function sanitizeTitle(value) {
 }
 
 /**
+ * 딜레이 헬퍼
+ */
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
  * 모드투어 API에서 상품 정보 조회
  */
 async function fetchProductFromApi(productNo) {
-  const { baseUrl, endpoint, headers } = apiConfig.modetour;
-  const url = `${baseUrl}${endpoint}?productNo=${productNo}`;
+  const { baseUrl, endpoints, headers } = apiConfig.modetour;
+  const url = `${baseUrl}${endpoints.productDetail}?productNo=${productNo}`;
 
   const response = await axios.get(url, {
     headers: {
@@ -122,7 +129,7 @@ function transformToEpData(rawData) {
   return {
     // 필수: id, title, price_pc, link, image_link, category_name1, shipping
     id: sanitizeId(rawId),
-    title: data.productName || "",
+    title: data.productName || "", // title 클렌징 여부
     price_pc: data.benefitPriceInfo?.price || 1,
     benefit_price: data.benefitPriceInfo?.discountPrice || 1,
     normal_price: data.productPriceAdultTotalAmount || 1,
@@ -139,9 +146,10 @@ function transformToEpData(rawData) {
       data.arrivalCityName +
       data.groupClassification,
     naver_category: 50007257,
+    // 카드 할인 정보, 포인트 누락되었는데 표기해야할지
     brand: "모두투어",
     brand_certification: "Y",
-    maker: "모두투어",
+    maker: "이레투어클럽",
     origin: "대한민국",
     search_tag: searchTag,
     shipping: 0,
@@ -175,8 +183,265 @@ async function scrapeAndSave(productNo) {
   return product;
 }
 
+/**
+ * 지역/테마별 상품 목록 조회 (SearchProductMaster)
+ */
+async function searchProductMaster(params) {
+  const { baseUrl, endpoints, headers } = apiConfig.modetour;
+  const url = `${baseUrl}${endpoints.searchProductMaster}`;
+
+  const requestBody = {
+    areaNo: params.areaNo,
+    searchFrom: params.searchFrom,
+    searchTo: params.searchTo,
+    pageNo: params.pageNo || 1,
+    pageSize: params.pageSize || 20,
+    sortType: params.sortType || "recommand",
+  };
+
+  const response = await axios.post(url, requestBody, { headers });
+
+  if (!response.data || !response.data.isOK) {
+    const errorMsg =
+      response.data?.errorMessages?.join(", ") || "Unknown error";
+    throw new Error(`SearchProductMaster failed: ${errorMsg}`);
+  }
+
+  return response.data;
+}
+
+/**
+ * 출발 가능 날짜 목록 조회 (SearchMinPriceDates)
+ */
+async function searchMinPriceDates(productMaster, startDate, endDate) {
+  const { baseUrl, endpoints, headers } = apiConfig.modetour;
+  const url = `${baseUrl}${endpoints.searchMinPriceDates}`;
+
+  // productMaster에서 필요한 필드 추출
+  const itemCodes = (productMaster.productCodes || []).map(
+    (p) => p.computedProductCode,
+  );
+  const pnums = itemCodes.map(() => null);
+
+  const requestBody = {
+    groupCls: "P",
+    conditionGroup: productMaster.conditionGroup || null,
+    conditionGroups: null,
+    startDate,
+    endDate,
+    itemCode: itemCodes,
+    pnums,
+    filter: {
+      typeFilter: "PGTOverseasTravel",
+      minPrice: 0,
+      maxPrice: 0,
+      startingPoint: productMaster.depatures || ["SEL"],
+      travelConcept: [],
+      transport: null,
+      transportation: null,
+      promotion: null,
+      tourCondition: {
+        airSeatClass: null,
+        airPortTax: null,
+        localTraffic: null,
+        mealFee: null,
+        dolomites: null,
+        roomCharge: null,
+        entranceFee: null,
+        neccessaryLocalExpenses: null,
+        localGuide: null,
+        guideYn: null,
+        shopping: null,
+        freeSchedule: null,
+        optionalTour: null,
+      },
+      depatureDay: [],
+      productBrand: [],
+      lodgment: [],
+      travelPeriod: [],
+      travelType: [],
+      depatureTime: [],
+      isViewAllAvaiableSeat: false,
+      sort: "Hightest",
+      promotions: [],
+    },
+  };
+
+  const response = await axios.post(url, requestBody, { headers });
+
+  if (!response.data || !response.data.isOK) {
+    const errorMsg =
+      response.data?.errorMessages?.join(", ") || "Unknown error";
+    throw new Error(`SearchMinPriceDates failed: ${errorMsg}`);
+  }
+
+  return response.data.result?.priceMinDates || [];
+}
+
+/**
+ * 특정 날짜 상품 상세 조회 (SearchProductDates)
+ */
+async function searchProductDates(productMaster, targetDate) {
+  const { baseUrl, endpoints, headers } = apiConfig.modetour;
+  const url = `${baseUrl}${endpoints.searchProductDates}`;
+
+  // productMaster에서 필요한 필드 추출
+  const itemCodes = (productMaster.productCodes || []).map(
+    (p) => p.computedProductCode,
+  );
+  const pnums = itemCodes.map(() => null);
+
+  const requestBody = {
+    groupCls: "P",
+    conditionGroup: productMaster.conditionGroup || null,
+    conditionGroups: null,
+    startDate: targetDate,
+    endDate: targetDate,
+    itemCode: itemCodes,
+    pnums,
+    filter: {
+      typeFilter: "PGTOverseasTravel",
+      minPrice: 0,
+      maxPrice: 0,
+      startingPoint: productMaster.depatures || ["SEL"],
+      travelConcept: [],
+      transport: null,
+      transportation: null,
+      promotion: null,
+      tourCondition: {
+        airSeatClass: null,
+        airPortTax: null,
+        localTraffic: null,
+        mealFee: null,
+        dolomites: null,
+        roomCharge: null,
+        entranceFee: null,
+        neccessaryLocalExpenses: null,
+        localGuide: null,
+        guideYn: null,
+        shopping: null,
+        freeSchedule: null,
+        optionalTour: null,
+      },
+      depatureDay: [],
+      productBrand: [],
+      lodgment: [],
+      travelPeriod: [],
+      travelType: [],
+      depatureTime: [],
+      isViewAllAvaiableSeat: false,
+      sort: "Hightest",
+      promotions: [],
+    },
+  };
+
+  const response = await axios.post(url, requestBody, { headers });
+
+  if (!response.data || !response.data.isOK) {
+    const errorMsg =
+      response.data?.errorMessages?.join(", ") || "Unknown error";
+    throw new Error(`SearchProductDates failed: ${errorMsg}`);
+  }
+
+  // productMasterDetail[0].productDate 배열 반환
+  const productMasterDetail = response.data.result?.productMasterDetail || [];
+  if (productMasterDetail.length > 0) {
+    return productMasterDetail[0].productDate || [];
+  }
+  return [];
+}
+
+/**
+ * 단일 productDate 정보를 Product 모델에 저장
+ */
+async function saveProductDetail(productDate, productMaster) {
+  const productNo = productDate.pnum;
+
+  const rawData = {
+    productDate,
+    productMaster: {
+      masterCode: productMaster.masterCode,
+      masterCodeNo: productMaster.masterCodeNo,
+      masterProductName: productMaster.masterProductName,
+    },
+  };
+
+  const product = await Product.findOneAndUpdate(
+    { productNo: Number(productNo) },
+    {
+      productNo: Number(productNo),
+      rawData,
+      departureDate: productDate.date?.sdate
+        ? new Date(productDate.date.sdate)
+        : null,
+      arrivalDate: productDate.date?.edate
+        ? new Date(productDate.date.edate)
+        : null,
+    },
+    { upsert: true, new: true },
+  );
+
+  return product;
+}
+
+/**
+ * 통합 수집 함수: productMaster에 대한 모든 출발일 상품 수집
+ */
+async function fetchAllProductDetails(productMaster, options) {
+  const { startDate, endDate, delayMs = 100 } = options;
+
+  // 1. 출발 가능 날짜 조회
+  const availableDates = await searchMinPriceDates(
+    productMaster,
+    startDate,
+    endDate,
+  );
+
+  const results = { success: [], failed: [] };
+
+  // 2. 각 날짜별 상세 조회 및 저장
+  for (const dateInfo of availableDates) {
+    try {
+      const details = await searchProductDates(productMaster, dateInfo.sDate);
+
+      // 3. 각 productDate를 Product 모델에 저장
+      for (const productDate of details) {
+        try {
+          const saved = await saveProductDetail(productDate, productMaster);
+          results.success.push({
+            productNo: saved.productNo,
+            departureDate: productDate.date?.sdate,
+          });
+        } catch (err) {
+          results.failed.push({
+            productNo: productDate.pnum,
+            departureDate: productDate.date?.sdate,
+            error: err.message,
+          });
+        }
+      }
+
+      await sleep(delayMs);
+    } catch (err) {
+      results.failed.push({
+        departureDate: dateInfo.sDate,
+        error: err.message,
+      });
+    }
+  }
+
+  return {
+    totalDates: availableDates.length,
+    results,
+  };
+}
+
 module.exports = {
   fetchProductFromApi,
   transformToEpData,
   scrapeAndSave,
+  searchProductMaster,
+  searchMinPriceDates,
+  searchProductDates,
+  fetchAllProductDetails,
 };
