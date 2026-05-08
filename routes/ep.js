@@ -1,6 +1,7 @@
-const { generateEpFile, generateEpFileFromProductMasters, syncProductImages } = require("../services/epService");
+const { generateEpFile, generateEpFileFromProductMasters, generateEpFileFromDb, syncProductImages } = require("../services/epService");
 const { uploadEpFile } = require("../services/ftpService");
 const { AREA_UNION } = require("../config/areaKeywords");
+const ProductMaster = require("../models/ProductMaster");
 
 async function epRoutes(fastify) {
   // EP 파일 조회 (TSV)
@@ -39,6 +40,7 @@ async function epRoutes(fastify) {
   });
 
   // ProductMaster 기반 EP 파일 FTP 업로드
+  // ?uploadImages=true 로 이미지도 FTP에 업로드
   fastify.post("/ep/masters/upload", async (request, reply) => {
     const today = new Date();
     const nextYear = new Date(today);
@@ -46,13 +48,50 @@ async function epRoutes(fastify) {
 
     const startDate = today.toISOString().split("T")[0];
     const endDate = nextYear.toISOString().split("T")[0];
+    const uploadImages = request.query.uploadImages === "true";
 
     const areaNos = Object.values(AREA_UNION);
 
-    const result = await generateEpFileFromProductMasters(areaNos, startDate, endDate);
+    const result = await generateEpFileFromProductMasters(areaNos, startDate, endDate, {
+      uploadImages,
+    });
     const url = await uploadEpFile(result.content);
 
-    return { success: true, url, count: result.count };
+    return { success: true, url, count: result.count, imagesUploaded: uploadImages };
+  });
+
+  // DB 기반 EP 파일 조회 (ProductMaster 컬렉션)
+  fastify.get("/ep/db", async (request, reply) => {
+    const result = await generateEpFileFromDb();
+
+    reply.header("Content-Type", "text/plain; charset=utf-8");
+    return result.content;
+  });
+
+  // DB 기반 EP 파일 FTP 업로드
+  // ?uploadImages=true 로 이미지도 FTP에 업로드
+  fastify.post("/ep/db/upload", async (request, reply) => {
+    const uploadImages = request.query.uploadImages === "true";
+
+    const result = await generateEpFileFromDb({ uploadImages });
+    const url = await uploadEpFile(result.content);
+
+    return { success: true, url, count: result.count, imagesUploaded: uploadImages };
+  });
+
+  // DB 상태 확인
+  fastify.get("/ep/db/stats", async (request, reply) => {
+    const total = await ProductMaster.countDocuments();
+    const withEpData = await ProductMaster.countDocuments({ epData: { $exists: true } });
+    const recentlyUpdated = await ProductMaster.countDocuments({
+      updated_at: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+    });
+
+    return {
+      total,
+      withEpData,
+      recentlyUpdated,
+    };
   });
 
   // 상품 이미지 FTP 동기화

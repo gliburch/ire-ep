@@ -1,5 +1,7 @@
 const Product = require("../models/Product");
+const ProductMaster = require("../models/ProductMaster");
 const scraperService = require("../services/scraperService");
+const { AREA_UNION, AREA_MAP } = require("../config/areaKeywords");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -174,6 +176,78 @@ async function productsRoutes(fastify) {
       },
       results: result.results,
     };
+  });
+
+  // 전체 ProductMaster 스크래핑 및 DB 저장
+  // 오늘부터 1년 후까지 모든 지역 조회
+  fastify.post("/product-masters/scrape", async (request, reply) => {
+    const today = new Date();
+    const nextYear = new Date(today);
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+
+    const startDate = today.toISOString().split("T")[0];
+    const endDate = nextYear.toISOString().split("T")[0];
+    const areaNos = Object.values(AREA_UNION);
+
+    const results = await scraperService.scrapeAllProductMasters(
+      areaNos,
+      startDate,
+      endDate,
+      {
+        onProgress: ({ current, total, areaNo, created, updated }) => {
+          const areaInfo = AREA_MAP[areaNo] || { koreanName: "Unknown" };
+          console.log(
+            `${current}/${total} ${areaInfo.koreanName} | created: ${created}, updated: ${updated}`,
+          );
+        },
+      },
+    );
+
+    return {
+      success: true,
+      period: { startDate, endDate },
+      results,
+    };
+  });
+
+  // ProductMaster 목록 조회
+  fastify.get("/product-masters", async (request, reply) => {
+    const { page = 1, limit = 20 } = request.query;
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [masters, total] = await Promise.all([
+      ProductMaster.find()
+        .sort({ updated_at: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .select("masterCode masterCodeNo epData.title epData.price_pc updated_at")
+        .lean(),
+      ProductMaster.countDocuments(),
+    ]);
+
+    return {
+      masters,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    };
+  });
+
+  // ProductMaster 단건 조회
+  fastify.get("/product-masters/:masterCode", async (request, reply) => {
+    const { masterCode } = request.params;
+
+    const master = await ProductMaster.findOne({ masterCode });
+    if (!master) {
+      return reply.code(404).send({ error: "ProductMaster not found" });
+    }
+
+    return master;
   });
 
   // 상품 조회

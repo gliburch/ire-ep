@@ -1,6 +1,7 @@
 const axios = require("axios");
 const apiConfig = require("../config/apiConfig");
 const Product = require("../models/Product");
+const ProductMaster = require("../models/ProductMaster");
 
 /**
  * 네이버 EP 상품 ID 정제
@@ -244,7 +245,7 @@ async function scrapeAndSave(productNo) {
         : null,
       arrivalDate: rawData.arrivalDate ? new Date(rawData.arrivalDate) : null,
     },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: "after" },
   );
 
   return product;
@@ -445,7 +446,7 @@ async function saveProductDetail(productDate, productMaster) {
         ? new Date(productDate.date.edate)
         : null,
     },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: "after" },
   );
 
   return product;
@@ -503,6 +504,100 @@ async function fetchAllProductDetails(productMaster, options) {
   };
 }
 
+/**
+ * ProductMaster를 DB에 저장 (upsert)
+ * - 신규: 생성
+ * - 기존: updated_at만 갱신
+ */
+async function saveProductMaster(master) {
+  const epData = transformProductMasterToEpData(master);
+
+  const result = await ProductMaster.findOneAndUpdate(
+    { masterCode: master.masterCode },
+    {
+      $set: {
+        masterCodeNo: master.masterCodeNo,
+        rawData: master,
+        epData,
+      },
+      $setOnInsert: {
+        masterCode: master.masterCode,
+      },
+    },
+    { upsert: true, returnDocument: "after" },
+  );
+
+  return result;
+}
+
+/**
+ * 전체 ProductMaster 스크래핑 및 DB 저장
+ */
+async function scrapeAllProductMasters(areaNos, startDate, endDate, options = {}) {
+  const { onProgress, delayMs = 100 } = options;
+  const results = { created: 0, updated: 0, failed: 0 };
+  const seenCodes = new Set();
+
+  for (let i = 0; i < areaNos.length; i++) {
+    const areaNo = areaNos[i];
+    let pageNo = 1;
+    let totalPages = 1;
+
+    do {
+      try {
+        const result = await searchProductMaster({
+          areaNo,
+          searchFrom: startDate,
+          searchTo: endDate,
+          pageNo,
+          pageSize: 100,
+        });
+
+        totalPages = result.result.totalPages || 1;
+        const masters = result.result.productMaster || [];
+
+        for (const master of masters) {
+          // 중복 체크
+          if (seenCodes.has(master.masterCode)) continue;
+          seenCodes.add(master.masterCode);
+
+          try {
+            const existing = await ProductMaster.findOne({
+              masterCode: master.masterCode,
+            });
+            await saveProductMaster(master);
+
+            if (existing) {
+              results.updated++;
+            } else {
+              results.created++;
+            }
+          } catch (err) {
+            results.failed++;
+          }
+        }
+
+        await sleep(delayMs);
+      } catch (err) {
+        console.error(`Area ${areaNo} page ${pageNo} failed:`, err.message);
+      }
+
+      pageNo++;
+    } while (pageNo <= totalPages);
+
+    if (onProgress) {
+      onProgress({
+        current: i + 1,
+        total: areaNos.length,
+        areaNo,
+        ...results,
+      });
+    }
+  }
+
+  return results;
+}
+
 module.exports = {
   fetchProductFromApi,
   transformToEpData,
@@ -512,4 +607,6 @@ module.exports = {
   searchMinPriceDates,
   searchProductDates,
   fetchAllProductDetails,
+  saveProductMaster,
+  scrapeAllProductMasters,
 };

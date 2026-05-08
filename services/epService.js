@@ -1,4 +1,5 @@
 const Product = require("../models/Product");
+const ProductMaster = require("../models/ProductMaster");
 const {
   createClient,
   uploadImageWithClient,
@@ -9,6 +10,52 @@ const {
   searchProductMaster,
   transformProductMasterToEpData,
 } = require("./scraperService");
+
+/**
+ * FTP 클라이언트 래퍼 (자동 재연결)
+ */
+class FtpClientWrapper {
+  constructor() {
+    this.client = null;
+  }
+
+  async getClient() {
+    if (!this.client || this.client.closed) {
+      this.client = await createClient();
+    }
+    return this.client;
+  }
+
+  async uploadImage(imageUrl) {
+    if (!imageUrl) return "";
+    try {
+      const client = await this.getClient();
+      return await uploadImageWithClient(client, imageUrl);
+    } catch (err) {
+      // 연결 끊김 시 재연결 시도
+      if (err.message.includes("closed") || err.message.includes("Timeout")) {
+        try {
+          this.client = await createClient();
+          return await uploadImageWithClient(this.client, imageUrl);
+        } catch (retryErr) {
+          console.error("Image upload failed (retry):", imageUrl, retryErr.message);
+          return imageUrl;
+        }
+      }
+      console.error("Image upload failed:", imageUrl, err.message);
+      return imageUrl;
+    }
+  }
+
+  close() {
+    if (this.client) {
+      try {
+        this.client.close();
+      } catch {}
+      this.client = null;
+    }
+  }
+}
 
 /**
  * TSV용 제어문자 제거
@@ -169,43 +216,72 @@ async function syncProductImages(limit = 0) {
  * @param {number[]} areaNos - 조회할 지역 번호 배열
  * @param {string} startDate - 검색 시작일 (YYYY-MM-DD)
  * @param {string} endDate - 검색 종료일 (YYYY-MM-DD)
+ * @param {object} options - 옵션
+ * @param {boolean} options.uploadImages - 이미지를 FTP에 업로드할지 여부
+ * @param {function} options.onProgress - 진행 상황 콜백
  */
-async function generateEpFileFromProductMasters(areaNos, startDate, endDate) {
+async function generateEpFileFromProductMasters(areaNos, startDate, endDate, options = {}) {
+  const { uploadImages = false, onProgress } = options;
   const allEpData = [];
   const seenIds = new Set();
 
-  for (const areaNo of areaNos) {
-    let pageNo = 1;
-    let totalPages = 1;
+  // 이미지 업로드용 FTP 클라이언트 래퍼
+  let ftpWrapper = null;
+  if (uploadImages) {
+    clearCache();
+    ftpWrapper = new FtpClientWrapper();
+  }
 
-    do {
-      const result = await searchProductMaster({
-        areaNo,
-        searchFrom: startDate,
-        searchTo: endDate,
-        pageNo,
-        pageSize: 100,
-      });
+  try {
+    for (let i = 0; i < areaNos.length; i++) {
+      const areaNo = areaNos[i];
+      let pageNo = 1;
+      let totalPages = 1;
 
-      totalPages = result.result.totalPages || 1;
-      const masters = result.result.productMaster || [];
+      do {
+        const result = await searchProductMaster({
+          areaNo,
+          searchFrom: startDate,
+          searchTo: endDate,
+          pageNo,
+          pageSize: 100,
+        });
 
-      for (const master of masters) {
-        try {
-          const epData = transformProductMasterToEpData(master);
+        totalPages = result.result.totalPages || 1;
+        const masters = result.result.productMaster || [];
 
-          // 중복 제거 (같은 masterCode가 여러 지역에 나올 수 있음)
-          if (!seenIds.has(epData.id)) {
-            seenIds.add(epData.id);
-            allEpData.push(epData);
+        for (const master of masters) {
+          try {
+            const epData = transformProductMasterToEpData(master);
+
+            // 중복 제거 (같은 masterCode가 여러 지역에 나올 수 있음)
+            if (!seenIds.has(epData.id)) {
+              seenIds.add(epData.id);
+
+              // 이미지 FTP 업로드
+              if (uploadImages && ftpWrapper && epData.image_link) {
+                epData.image_link = await ftpWrapper.uploadImage(epData.image_link);
+              }
+
+              allEpData.push(epData);
+            }
+          } catch (err) {
+            console.error(`Failed to transform master ${master.masterCode}:`, err.message);
           }
-        } catch (err) {
-          console.error(`Failed to transform master ${master.masterCode}:`, err.message);
         }
-      }
 
-      pageNo++;
-    } while (pageNo <= totalPages);
+        pageNo++;
+      } while (pageNo <= totalPages);
+
+      // 진행 상황 콜백
+      if (onProgress) {
+        onProgress({ current: i + 1, total: areaNos.length, count: allEpData.length });
+      }
+    }
+  } finally {
+    if (ftpWrapper) {
+      ftpWrapper.close();
+    }
   }
 
   const headerRow = EP_HEADERS.join("\t");
@@ -217,10 +293,57 @@ async function generateEpFileFromProductMasters(areaNos, startDate, endDate) {
   };
 }
 
+/**
+ * DB에 저장된 ProductMaster 기반 EP 파일 생성
+ * @param {object} options - 옵션
+ * @param {boolean} options.uploadImages - 이미지를 FTP에 업로드할지 여부
+ */
+async function generateEpFileFromDb(options = {}) {
+  const { uploadImages = false } = options;
+
+  const masters = await ProductMaster.find().lean();
+
+  let ftpWrapper = null;
+  if (uploadImages) {
+    clearCache();
+    ftpWrapper = new FtpClientWrapper();
+  }
+
+  const epDataList = [];
+
+  try {
+    for (const master of masters) {
+      if (!master.epData) continue;
+
+      const epData = { ...master.epData };
+
+      // 이미지 FTP 업로드
+      if (uploadImages && ftpWrapper && epData.image_link) {
+        epData.image_link = await ftpWrapper.uploadImage(epData.image_link);
+      }
+
+      epDataList.push(epData);
+    }
+  } finally {
+    if (ftpWrapper) {
+      ftpWrapper.close();
+    }
+  }
+
+  const headerRow = EP_HEADERS.join("\t");
+  const dataRows = epDataList.map((ep) => productToTsvRow(ep));
+
+  return {
+    content: [headerRow, ...dataRows].join("\n"),
+    count: epDataList.length,
+  };
+}
+
 module.exports = {
   sanitizeForTsv,
   EP_HEADERS,
   generateEpFile,
   generateEpFileFromProductMasters,
+  generateEpFileFromDb,
   syncProductImages,
 };
