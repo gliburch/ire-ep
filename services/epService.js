@@ -295,13 +295,19 @@ async function generateEpFileFromProductMasters(areaNos, startDate, endDate, opt
 
 /**
  * DB에 저장된 ProductMaster 기반 EP 파일 생성
+ * - 최근 24시간 내 업데이트된 ProductMaster만 포함
  * @param {object} options - 옵션
  * @param {boolean} options.uploadImages - 이미지를 FTP에 업로드할지 여부
  */
 async function generateEpFileFromDb(options = {}) {
   const { uploadImages = false } = options;
 
-  const masters = await ProductMaster.find().lean();
+  // 24시간 전
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const masters = await ProductMaster.find({
+    updated_at: { $gte: since },
+  }).lean();
 
   let ftpWrapper = null;
   if (uploadImages) {

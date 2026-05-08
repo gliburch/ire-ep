@@ -132,7 +132,10 @@ async function uploadEpFile(content, filename = "ire_naver_ep.txt") {
 
   const client = await createClient();
   try {
-    const stream = Readable.from(Buffer.from(content, "utf-8"));
+    const normalizedContent = content.startsWith("\uFEFF")
+      ? content
+      : `\uFEFF${content}`;
+    const stream = Readable.from(Buffer.from(normalizedContent, "utf-8"));
     await client.uploadFrom(stream, remotePath);
     return `${FTP_BASE_URL}/ep/${filename}`;
   } finally {
