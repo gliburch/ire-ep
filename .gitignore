@@ -52,6 +52,9 @@ out/
 .env.local
 .env.*.local
 
+# Generated EP output
+ire_naver_ep.txt
+
 # npm cache directory
 .npm
 *.tgz
