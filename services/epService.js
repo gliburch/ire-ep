@@ -305,7 +305,7 @@ async function generateEpFileFromProductMasters(targets, startDate, endDate, opt
 
         for (const master of masters) {
           try {
-            const epData = transformProductMasterToEpData(master);
+            const epData = transformProductMasterToEpData(master, { target });
 
             // 중복 제거 (같은 masterCode가 여러 지역에 나올 수 있음)
             if (!seenIds.has(epData.id)) {

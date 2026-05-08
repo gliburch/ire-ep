@@ -4,6 +4,7 @@ const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
 const DOMESTIC_PATH_NAME = "국내여행";
 const AREA_TARGET_PATH_NAMES = new Set(["해외여행", "지방출발"]);
+const OVERSEAS_NAVER_CATEGORY = 50007257;
 
 /**
  * 네이버 EP 상품 ID 정제
@@ -175,9 +176,11 @@ async function getProductMasterSearchTargets() {
 /**
  * ProductMaster를 네이버 EP 형식으로 변환
  */
-function transformProductMasterToEpData(productMaster) {
+function transformProductMasterToEpData(productMaster, options = {}) {
+  const { target } = options;
   const masterCode = productMaster.masterCode || "";
   const masterCodeNo = productMaster.masterCodeNo || "";
+  const isDomestic = target?.type === "theme";
 
   // ID 생성: masterCode_PGE_IRE
   const rawId = `${masterCode}_PGE_IRE`;
@@ -216,6 +219,18 @@ function transformProductMasterToEpData(productMaster) {
     ? `${dates[0].night}박${dates[0].days}일`
     : "";
 
+  const categories = isDomestic
+    ? {
+        category_name2: "국내여행",
+        category_name3: "국내패키지/기타",
+        naver_category: "",
+      }
+    : {
+        category_name2: "해외여행",
+        category_name3: "해외패키지/기타",
+        naver_category: OVERSEAS_NAVER_CATEGORY,
+      };
+
   return {
     id: sanitizeId(rawId),
     title: sanitizeTitle(productMaster.masterProductName || ""),
@@ -224,10 +239,10 @@ function transformProductMasterToEpData(productMaster) {
     mobile_link: mobileLink,
     image_link: productMaster.image || "",
     category_name1: "여가/생활편의",
-    category_name2: "해외여행",
-    category_name3: "해외패키지/기타",
+    category_name2: categories.category_name2,
+    category_name3: categories.category_name3,
     category_name4: `${depatureFrom}출발 ${areas} ${periodInfo}`.trim(),
-    naver_category: 50007257,
+    naver_category: categories.naver_category,
     brand: "모두투어",
     brand_certification: "Y",
     maker: "이레투어클럽",
@@ -616,15 +631,18 @@ async function fetchAllProductDetails(productMaster, options) {
  * - 신규: 생성
  * - 기존: updated_at만 갱신
  */
-async function saveProductMaster(master) {
-  const epData = transformProductMasterToEpData(master);
+async function saveProductMaster(master, target) {
+  const epData = transformProductMasterToEpData(master, { target });
 
   const result = await ProductMaster.findOneAndUpdate(
     { masterCode: master.masterCode },
     {
       $set: {
         masterCodeNo: master.masterCodeNo,
-        rawData: master,
+        rawData: {
+          ...master,
+          _searchTarget: target || null,
+        },
         epData,
       },
       $setOnInsert: {
@@ -725,7 +743,7 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
             const existing = await ProductMaster.findOne({
               masterCode: master.masterCode,
             });
-            await saveProductMaster(master);
+            await saveProductMaster(master, target);
 
             if (existing) {
               results.updated++;
