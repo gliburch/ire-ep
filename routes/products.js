@@ -1,7 +1,6 @@
 const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
 const scraperService = require("../services/scraperService");
-const { AREA_UNION, AREA_MAP } = require("../config/areaKeywords");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -130,17 +129,18 @@ async function productsRoutes(fastify) {
 
   // 상품 목록 검색 (SearchProductMaster)
   fastify.post("/products/search", async (request, reply) => {
-    const { areaNo, searchFrom, searchTo, pageNo, pageSize, sortType } =
+    const { areaNo, themeNo, searchFrom, searchTo, pageNo, pageSize, sortType } =
       request.body || {};
 
-    if (!areaNo || !searchFrom || !searchTo) {
+    if ((!areaNo && !themeNo) || !searchFrom || !searchTo) {
       return reply
         .code(400)
-        .send({ error: "areaNo, searchFrom, searchTo are required" });
+        .send({ error: "areaNo or themeNo, searchFrom, searchTo are required" });
     }
 
     const result = await scraperService.searchProductMaster({
       areaNo,
+      themeNo,
       searchFrom,
       searchTo,
       pageNo,
@@ -179,7 +179,7 @@ async function productsRoutes(fastify) {
   });
 
   // 전체 ProductMaster 스크래핑 및 DB 저장
-  // 오늘부터 1년 후까지 모든 지역 조회
+  // 오늘부터 1년 후까지 GetGnb 기준 지역/테마 조회
   fastify.post("/product-masters/scrape", async (request, reply) => {
     const today = new Date();
     const nextYear = new Date(today);
@@ -187,17 +187,17 @@ async function productsRoutes(fastify) {
 
     const startDate = today.toISOString().split("T")[0];
     const endDate = nextYear.toISOString().split("T")[0];
-    const areaNos = Object.values(AREA_UNION);
+    const targets = await scraperService.getProductMasterSearchTargets();
 
     const results = await scraperService.scrapeAllProductMasters(
-      areaNos,
+      targets,
       startDate,
       endDate,
       {
-        onProgress: ({ current, total, areaNo, created, updated }) => {
-          const areaInfo = AREA_MAP[areaNo] || { koreanName: "Unknown" };
+        onProgress: ({ current, total, target, created, updated }) => {
+          const label = target?.name || String(target?.areaNo || target?.themeNo || "Unknown");
           console.log(
-            `${current}/${total} ${areaInfo.koreanName} | created: ${created}, updated: ${updated}`,
+            `${current}/${total} [${target?.type}] ${label} | created: ${created}, updated: ${updated}`,
           );
         },
       },
@@ -206,6 +206,10 @@ async function productsRoutes(fastify) {
     return {
       success: true,
       period: { startDate, endDate },
+      targets: {
+        areaCount: targets.areaTargets.length,
+        themeCount: targets.themeTargets.length,
+      },
       results,
     };
   });

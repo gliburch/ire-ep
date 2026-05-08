@@ -108,7 +108,6 @@ models/
   ProductMaster.js
 config/
   apiConfig.js
-  areaKeywords.js
   env.js
 ```
 

@@ -213,17 +213,23 @@ async function syncProductImages(limit = 0) {
 
 /**
  * ProductMaster API 기반 EP 파일 생성
- * @param {number[]} areaNos - 조회할 지역 번호 배열
+ * @param {object} targets - 조회할 지역/테마 대상
  * @param {string} startDate - 검색 시작일 (YYYY-MM-DD)
  * @param {string} endDate - 검색 종료일 (YYYY-MM-DD)
  * @param {object} options - 옵션
  * @param {boolean} options.uploadImages - 이미지를 FTP에 업로드할지 여부
  * @param {function} options.onProgress - 진행 상황 콜백
  */
-async function generateEpFileFromProductMasters(areaNos, startDate, endDate, options = {}) {
+async function generateEpFileFromProductMasters(targets, startDate, endDate, options = {}) {
   const { uploadImages = false, onProgress } = options;
   const allEpData = [];
   const seenIds = new Set();
+  const normalizedTargets = Array.isArray(targets)
+    ? targets.map((areaNo) => ({ type: "area", areaNo, name: String(areaNo) }))
+    : [
+        ...(targets?.areaTargets || []),
+        ...(targets?.themeTargets || []),
+      ];
 
   // 이미지 업로드용 FTP 클라이언트 래퍼
   let ftpWrapper = null;
@@ -233,14 +239,61 @@ async function generateEpFileFromProductMasters(areaNos, startDate, endDate, opt
   }
 
   try {
-    for (let i = 0; i < areaNos.length; i++) {
-      const areaNo = areaNos[i];
+    for (let i = 0; i < normalizedTargets.length; i++) {
+      const target = normalizedTargets[i];
       let pageNo = 1;
       let totalPages = 1;
 
       do {
+        const searchParams = target.type === "theme"
+          ? {
+              areaNo: 0,
+              themeNo: target.themeNo,
+              travelType: "GNBDomesticTravel",
+              deviceType: "DVTPC",
+              filter: {
+                typeFilter: "PGTDomesticTravel",
+                minPrice: 0,
+                maxPrice: 0,
+                startingPoint: [],
+                destination: null,
+                travelConcept: null,
+                endLocation: null,
+                transport: null,
+                transportation: null,
+                promotion: null,
+                tourCondition: {
+                  airSeatClass: null,
+                  airPortTax: null,
+                  localTraffic: null,
+                  mealFee: null,
+                  dolomites: null,
+                  roomCharge: null,
+                  entranceFee: null,
+                  neccessaryLocalExpenses: null,
+                  localGuide: null,
+                  guideYn: null,
+                  shopping: null,
+                  freeSchedule: null,
+                  optionalTour: null,
+                },
+                depatureDay: null,
+                productBrand: null,
+                lodgment: null,
+                travelPeriod: null,
+                travelType: ["패키지"],
+                depatureTime: null,
+                isViewAllAvailableSeat: true,
+                sort: "Recommend",
+                promotions: null,
+              },
+            }
+          : {
+              areaNo: target.areaNo,
+            };
+
         const result = await searchProductMaster({
-          areaNo,
+          ...searchParams,
           searchFrom: startDate,
           searchTo: endDate,
           pageNo,
@@ -275,7 +328,12 @@ async function generateEpFileFromProductMasters(areaNos, startDate, endDate, opt
 
       // 진행 상황 콜백
       if (onProgress) {
-        onProgress({ current: i + 1, total: areaNos.length, count: allEpData.length });
+        onProgress({
+          current: i + 1,
+          total: normalizedTargets.length,
+          target,
+          count: allEpData.length,
+        });
       }
     }
   } finally {

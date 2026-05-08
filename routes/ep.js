@@ -1,6 +1,6 @@
 const { generateEpFile, generateEpFileFromProductMasters, generateEpFileFromDb, syncProductImages } = require("../services/epService");
 const { uploadEpFile } = require("../services/ftpService");
-const { AREA_UNION } = require("../config/areaKeywords");
+const { getProductMasterSearchTargets } = require("../services/scraperService");
 const ProductMaster = require("../models/ProductMaster");
 
 async function epRoutes(fastify) {
@@ -21,7 +21,7 @@ async function epRoutes(fastify) {
   });
 
   // ProductMaster 기반 EP 파일 생성
-  // 오늘부터 1년 후까지 모든 지역의 ProductMaster를 조회
+  // 오늘부터 1년 후까지 GetGnb 기준 지역/테마 조회
   fastify.get("/ep/masters", async (request, reply) => {
     const today = new Date();
     const nextYear = new Date(today);
@@ -29,11 +29,8 @@ async function epRoutes(fastify) {
 
     const startDate = today.toISOString().split("T")[0];
     const endDate = nextYear.toISOString().split("T")[0];
-
-    // 모든 유니온 지역 조회
-    const areaNos = Object.values(AREA_UNION);
-
-    const result = await generateEpFileFromProductMasters(areaNos, startDate, endDate);
+    const targets = await getProductMasterSearchTargets();
+    const result = await generateEpFileFromProductMasters(targets, startDate, endDate);
 
     reply.header("Content-Type", "text/plain; charset=utf-8");
     return result.content;
@@ -50,9 +47,8 @@ async function epRoutes(fastify) {
     const endDate = nextYear.toISOString().split("T")[0];
     const uploadImages = request.query.uploadImages === "true";
 
-    const areaNos = Object.values(AREA_UNION);
-
-    const result = await generateEpFileFromProductMasters(areaNos, startDate, endDate, {
+    const targets = await getProductMasterSearchTargets();
+    const result = await generateEpFileFromProductMasters(targets, startDate, endDate, {
       uploadImages,
     });
     const url = await uploadEpFile(result.content);

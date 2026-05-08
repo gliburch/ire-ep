@@ -2,6 +2,8 @@ const axios = require("axios");
 const apiConfig = require("../config/apiConfig");
 const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
+const DOMESTIC_PATH_NAME = "국내여행";
+const AREA_TARGET_PATH_NAMES = new Set(["해외여행", "지방출발"]);
 
 /**
  * 네이버 EP 상품 ID 정제
@@ -67,6 +69,107 @@ async function fetchProductFromApi(productNo) {
   }
 
   return response.data;
+}
+
+/**
+ * GNB 트리 조회
+ */
+async function fetchGnb() {
+  const { baseUrl, endpoints, headers } = apiConfig.modetour;
+  const url = `${baseUrl}${endpoints.getGnb}`;
+
+  const response = await axios.get(url, {
+    headers: {
+      ...headers,
+      "x-incomming-pathname": "/package/search-result",
+    },
+  });
+
+  if (!response.data || !response.data.isOK || !Array.isArray(response.data.result)) {
+    const errorMsg =
+      response.data?.errorMessages?.join(", ") || "Unknown error";
+    throw new Error(`GetGnb failed: ${errorMsg}`);
+  }
+
+  return response.data.result;
+}
+
+function walkGnbTree(value, path, visit) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      walkGnbTree(item, path, visit);
+    }
+    return;
+  }
+
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  const nextPath = value.gnbCategoryName
+    ? [...path, value.gnbCategoryName]
+    : path;
+
+  visit(value, nextPath);
+
+  for (const childValue of Object.values(value)) {
+    if (childValue && typeof childValue === "object") {
+      walkGnbTree(childValue, nextPath, visit);
+    }
+  }
+}
+
+/**
+ * GetGnb 응답에서 ProductMaster 검색 대상 추출
+ * - 지역 검색: areaKeywordNo
+ * - 테마 검색: 국내여행 경로의 themeNo
+ */
+async function getProductMasterSearchTargets() {
+  const gnbTree = await fetchGnb();
+  const areaTargetMap = new Map();
+  const themeTargetMap = new Map();
+
+  walkGnbTree(gnbTree, [], (node, path) => {
+    const hasSubCategories = Array.isArray(node.subCategories) && node.subCategories.length > 0;
+
+    if (Array.isArray(node.areaKeywords)) {
+      for (const keyword of node.areaKeywords) {
+        const areaNo = Number(keyword.areaKeywordNo);
+        if (
+          !areaNo ||
+          areaTargetMap.has(areaNo) ||
+          !path.some((name) => AREA_TARGET_PATH_NAMES.has(name)) ||
+          !hasSubCategories
+        ) {
+          continue;
+        }
+
+        areaTargetMap.set(areaNo, {
+          type: "area",
+          areaNo,
+          name: node.gnbCategoryName || keyword.koreaName || keyword.englishName || String(areaNo),
+          path,
+        });
+      }
+    }
+
+    if (node.themeNo && path.includes(DOMESTIC_PATH_NAME)) {
+      const themeNo = Number(node.themeNo);
+      if (!themeNo || themeTargetMap.has(themeNo)) return;
+
+      themeTargetMap.set(themeNo, {
+        type: "theme",
+        themeNo,
+        name: node.themeName || node.gnbCategoryName || String(themeNo),
+        path,
+      });
+    }
+  });
+
+  return {
+    areaTargets: Array.from(areaTargetMap.values()).sort((a, b) => a.areaNo - b.areaNo),
+    themeTargets: Array.from(themeTargetMap.values()).sort((a, b) => a.themeNo - b.themeNo),
+  };
 }
 
 /**
@@ -259,12 +362,16 @@ async function searchProductMaster(params) {
   const url = `${baseUrl}${endpoints.searchProductMaster}`;
 
   const requestBody = {
-    areaNo: params.areaNo,
+    areaNo: params.areaNo ?? 0,
+    ...(params.themeNo ? { themeNo: params.themeNo } : {}),
     searchFrom: params.searchFrom,
     searchTo: params.searchTo,
     pageNo: params.pageNo || 1,
     pageSize: params.pageSize || 20,
     sortType: params.sortType || "recommand",
+    ...(params.travelType ? { travelType: params.travelType } : {}),
+    ...(params.deviceType ? { deviceType: params.deviceType } : {}),
+    ...(params.filter ? { filter: params.filter } : {}),
   };
 
   const response = await axios.post(url, requestBody, { headers });
@@ -533,20 +640,73 @@ async function saveProductMaster(master) {
 /**
  * 전체 ProductMaster 스크래핑 및 DB 저장
  */
-async function scrapeAllProductMasters(areaNos, startDate, endDate, options = {}) {
+async function scrapeAllProductMasters(targets, startDate, endDate, options = {}) {
   const { onProgress, delayMs = 100 } = options;
   const results = { created: 0, updated: 0, failed: 0 };
   const seenCodes = new Set();
+  const normalizedTargets = Array.isArray(targets)
+    ? targets.map((areaNo) => ({ type: "area", areaNo, name: String(areaNo) }))
+    : [
+        ...(targets?.areaTargets || []),
+        ...(targets?.themeTargets || []),
+      ];
 
-  for (let i = 0; i < areaNos.length; i++) {
-    const areaNo = areaNos[i];
+  for (let i = 0; i < normalizedTargets.length; i++) {
+    const target = normalizedTargets[i];
     let pageNo = 1;
     let totalPages = 1;
 
     do {
       try {
+        const searchParams = target.type === "theme"
+          ? {
+              areaNo: 0,
+              themeNo: target.themeNo,
+              travelType: "GNBDomesticTravel",
+              deviceType: "DVTPC",
+              filter: {
+                typeFilter: "PGTDomesticTravel",
+                minPrice: 0,
+                maxPrice: 0,
+                startingPoint: [],
+                destination: null,
+                travelConcept: null,
+                endLocation: null,
+                transport: null,
+                transportation: null,
+                promotion: null,
+                tourCondition: {
+                  airSeatClass: null,
+                  airPortTax: null,
+                  localTraffic: null,
+                  mealFee: null,
+                  dolomites: null,
+                  roomCharge: null,
+                  entranceFee: null,
+                  neccessaryLocalExpenses: null,
+                  localGuide: null,
+                  guideYn: null,
+                  shopping: null,
+                  freeSchedule: null,
+                  optionalTour: null,
+                },
+                depatureDay: null,
+                productBrand: null,
+                lodgment: null,
+                travelPeriod: null,
+                travelType: ["패키지"],
+                depatureTime: null,
+                isViewAllAvailableSeat: true,
+                sort: "Recommend",
+                promotions: null,
+              },
+            }
+          : {
+              areaNo: target.areaNo,
+            };
+
         const result = await searchProductMaster({
-          areaNo,
+          ...searchParams,
           searchFrom: startDate,
           searchTo: endDate,
           pageNo,
@@ -579,7 +739,10 @@ async function scrapeAllProductMasters(areaNos, startDate, endDate, options = {}
 
         await sleep(delayMs);
       } catch (err) {
-        console.error(`Area ${areaNo} page ${pageNo} failed:`, err.message);
+        console.error(
+          `${target.type} ${target.areaNo || target.themeNo} page ${pageNo} failed:`,
+          err.message,
+        );
       }
 
       pageNo++;
@@ -588,8 +751,8 @@ async function scrapeAllProductMasters(areaNos, startDate, endDate, options = {}
     if (onProgress) {
       onProgress({
         current: i + 1,
-        total: areaNos.length,
-        areaNo,
+        total: normalizedTargets.length,
+        target,
         ...results,
       });
     }
@@ -600,6 +763,8 @@ async function scrapeAllProductMasters(areaNos, startDate, endDate, options = {}
 
 module.exports = {
   fetchProductFromApi,
+  fetchGnb,
+  getProductMasterSearchTargets,
   transformToEpData,
   transformProductMasterToEpData,
   scrapeAndSave,
