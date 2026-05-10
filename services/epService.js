@@ -212,6 +212,101 @@ async function syncProductImages(limit = 0) {
 }
 
 /**
+ * ProductMaster 이미지를 FTP에 동기화
+ * - epData.image_link / add_image_link 를 Cafe24 URL로 치환
+ * - DB에 반영하여 이후 EP 생성 시 바로 FTP URL을 사용
+ * @param {object|number} options - 옵션 또는 처리 개수 제한
+ * @param {number} options.limit - 처리할 상품 수 제한 (0 = 전체)
+ * @param {boolean} options.onlyPending - Cafe24가 아닌 이미지만 처리할지 여부
+ */
+async function syncProductMasterImages(options = {}) {
+  const normalizedOptions = typeof options === "number"
+    ? { limit: options }
+    : options;
+  const {
+    limit = 0,
+    onlyPending = true,
+  } = normalizedOptions;
+
+  const queryFilter = {
+    epData: { $exists: true },
+  };
+
+  if (onlyPending) {
+    queryFilter["epData.image_link"] = { $not: /cafe24\.com/ };
+  }
+
+  let query = ProductMaster.find(queryFilter);
+
+  if (limit > 0) {
+    query = query.limit(limit);
+  }
+
+  const masters = await query;
+
+  clearCache();
+
+  let synced = 0;
+  let failed = 0;
+  let client = null;
+
+  try {
+    client = await createClient();
+
+    for (const master of masters) {
+      try {
+        const epData = master.epData;
+        if (!epData) continue;
+
+        let updated = false;
+
+        if (epData.image_link && !epData.image_link.includes("cafe24.com")) {
+          const newUrl = await uploadImageWithClient(client, epData.image_link);
+          if (newUrl) {
+            epData.image_link = newUrl;
+            updated = true;
+          }
+        }
+
+        if (epData.add_image_link && !epData.add_image_link.includes("cafe24.com")) {
+          const urls = epData.add_image_link.split("|").filter(Boolean);
+          const newUrls = [];
+
+          for (const url of urls) {
+            const newUrl = await uploadImageWithClient(client, url);
+            newUrls.push(newUrl || url);
+          }
+
+          epData.add_image_link = newUrls.join("|");
+          updated = true;
+        }
+
+        if (updated) {
+          master.epData = epData;
+          master.markModified("epData");
+          await master.save();
+          synced++;
+        }
+      } catch (err) {
+        console.error(`Failed to sync ProductMaster ${master.masterCode}:`, err.message);
+        failed++;
+
+        if (err.message.includes("Timeout") || err.message.includes("closed")) {
+          try {
+            client.close();
+          } catch {}
+          client = await createClient();
+        }
+      }
+    }
+  } finally {
+    if (client) client.close();
+  }
+
+  return { total: masters.length, synced, failed };
+}
+
+/**
  * ProductMaster API 기반 EP 파일 생성
  * @param {object} targets - 조회할 지역/테마 대상
  * @param {string} startDate - 검색 시작일 (YYYY-MM-DD)
@@ -410,4 +505,5 @@ module.exports = {
   generateEpFileFromProductMasters,
   generateEpFileFromDb,
   syncProductImages,
+  syncProductMasterImages,
 };

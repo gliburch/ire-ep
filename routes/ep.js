@@ -1,4 +1,4 @@
-const { generateEpFile, generateEpFileFromProductMasters, generateEpFileFromDb, syncProductImages } = require("../services/epService");
+const { generateEpFile, generateEpFileFromProductMasters, generateEpFileFromDb, syncProductImages, syncProductMasterImages } = require("../services/epService");
 const { uploadEpFile } = require("../services/ftpService");
 const { getProductMasterSearchTargets } = require("../services/scraperService");
 const ProductMaster = require("../models/ProductMaster");
@@ -95,6 +95,16 @@ async function epRoutes(fastify) {
   fastify.post("/ep/sync-images", async (request, reply) => {
     const limit = parseInt(request.query.limit) || 0;
     const result = await syncProductImages(limit);
+
+    return { success: true, ...result };
+  });
+
+  // ProductMaster 이미지 FTP 동기화
+  // ?limit=10 으로 테스트 가능
+  fastify.post("/ep/db/sync-images", async (request, reply) => {
+    const limit = parseInt(request.query.limit) || 0;
+    const onlyPending = request.query.onlyPending !== "false";
+    const result = await syncProductMasterImages({ limit, onlyPending });
 
     return { success: true, ...result };
   });

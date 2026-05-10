@@ -22,7 +22,7 @@ const uploadedCache = new Set();
  * FTP 클라이언트 생성 및 접속
  */
 async function createClient() {
-  const client = new ftp.Client();
+  const client = new ftp.Client(120000);
   client.ftp.verbose = false;
   await client.access(FTP_CONFIG);
   return client;
