@@ -2,6 +2,11 @@ const axios = require("axios");
 const apiConfig = require("../config/apiConfig");
 const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
+const {
+  createClient,
+  uploadImageWithClient,
+  clearCache,
+} = require("./ftpService");
 const DOMESTIC_PATH_NAME = "국내여행";
 const AREA_TARGET_PATH_NAMES = new Set(["해외여행", "지방출발"]);
 const OVERSEAS_NAVER_CATEGORY = 50007257;
@@ -47,6 +52,30 @@ function sanitizeTitle(value) {
  */
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function uploadEpImagesForNewMaster(epData, client) {
+  if (!client || !epData) {
+    return epData;
+  }
+
+  const nextEpData = { ...epData };
+
+  if (nextEpData.image_link && !nextEpData.image_link.includes("cafe24.com")) {
+    nextEpData.image_link = await uploadImageWithClient(client, nextEpData.image_link);
+  }
+
+  if (nextEpData.add_image_link && !nextEpData.add_image_link.includes("cafe24.com")) {
+    const uploadedUrls = [];
+
+    for (const url of nextEpData.add_image_link.split("|").filter(Boolean)) {
+      uploadedUrls.push(await uploadImageWithClient(client, url));
+    }
+
+    nextEpData.add_image_link = uploadedUrls.join("|");
+  }
+
+  return nextEpData;
 }
 
 /**
@@ -627,32 +656,39 @@ async function fetchAllProductDetails(productMaster, options) {
 }
 
 /**
- * ProductMaster를 DB에 저장 (upsert)
- * - 신규: 생성
+ * ProductMaster를 DB에 저장
+ * - 신규: 이미지 FTP 업로드 후 생성
  * - 기존: updated_at만 갱신
  */
-async function saveProductMaster(master, target) {
+async function saveProductMaster(master, target, options = {}) {
+  const { ftpClient = null } = options;
+  const existing = await ProductMaster.findOne({
+    masterCode: master.masterCode,
+  }).select("_id");
+
+  if (existing) {
+    await ProductMaster.updateOne(
+      { _id: existing._id },
+      { $currentDate: { updated_at: true } },
+    );
+
+    return { status: "updated" };
+  }
+
   const epData = transformProductMasterToEpData(master, { target });
+  const uploadedEpData = await uploadEpImagesForNewMaster(epData, ftpClient);
 
-  const result = await ProductMaster.findOneAndUpdate(
-    { masterCode: master.masterCode },
-    {
-      $set: {
-        masterCodeNo: master.masterCodeNo,
-        rawData: {
-          ...master,
-          _searchTarget: target || null,
-        },
-        epData,
-      },
-      $setOnInsert: {
-        masterCode: master.masterCode,
-      },
+  await ProductMaster.create({
+    masterCode: master.masterCode,
+    masterCodeNo: master.masterCodeNo,
+    rawData: {
+      ...master,
+      _searchTarget: target || null,
     },
-    { upsert: true, returnDocument: "after" },
-  );
+    epData: uploadedEpData,
+  });
 
-  return result;
+  return { status: "created" };
 }
 
 /**
@@ -669,110 +705,125 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
         ...(targets?.themeTargets || []),
       ];
 
-  for (let i = 0; i < normalizedTargets.length; i++) {
-    const target = normalizedTargets[i];
-    let pageNo = 1;
-    let totalPages = 1;
+  clearCache();
 
-    do {
-      try {
-        const searchParams = target.type === "theme"
-          ? {
-              areaNo: 0,
-              themeNo: target.themeNo,
-              travelType: "GNBDomesticTravel",
-              deviceType: "DVTPC",
-              filter: {
-                typeFilter: "PGTDomesticTravel",
-                minPrice: 0,
-                maxPrice: 0,
-                startingPoint: [],
-                destination: null,
-                travelConcept: null,
-                endLocation: null,
-                transport: null,
-                transportation: null,
-                promotion: null,
-                tourCondition: {
-                  airSeatClass: null,
-                  airPortTax: null,
-                  localTraffic: null,
-                  mealFee: null,
-                  dolomites: null,
-                  roomCharge: null,
-                  entranceFee: null,
-                  neccessaryLocalExpenses: null,
-                  localGuide: null,
-                  guideYn: null,
-                  shopping: null,
-                  freeSchedule: null,
-                  optionalTour: null,
+  let ftpClient = null;
+
+  try {
+    ftpClient = await createClient();
+
+    for (let i = 0; i < normalizedTargets.length; i++) {
+      const target = normalizedTargets[i];
+      let pageNo = 1;
+      let totalPages = 1;
+
+      do {
+        try {
+          const searchParams = target.type === "theme"
+            ? {
+                areaNo: 0,
+                themeNo: target.themeNo,
+                travelType: "GNBDomesticTravel",
+                deviceType: "DVTPC",
+                filter: {
+                  typeFilter: "PGTDomesticTravel",
+                  minPrice: 0,
+                  maxPrice: 0,
+                  startingPoint: [],
+                  destination: null,
+                  travelConcept: null,
+                  endLocation: null,
+                  transport: null,
+                  transportation: null,
+                  promotion: null,
+                  tourCondition: {
+                    airSeatClass: null,
+                    airPortTax: null,
+                    localTraffic: null,
+                    mealFee: null,
+                    dolomites: null,
+                    roomCharge: null,
+                    entranceFee: null,
+                    neccessaryLocalExpenses: null,
+                    localGuide: null,
+                    guideYn: null,
+                    shopping: null,
+                    freeSchedule: null,
+                    optionalTour: null,
+                  },
+                  depatureDay: null,
+                  productBrand: null,
+                  lodgment: null,
+                  travelPeriod: null,
+                  travelType: ["패키지"],
+                  depatureTime: null,
+                  isViewAllAvailableSeat: true,
+                  sort: "Recommend",
+                  promotions: null,
                 },
-                depatureDay: null,
-                productBrand: null,
-                lodgment: null,
-                travelPeriod: null,
-                travelType: ["패키지"],
-                depatureTime: null,
-                isViewAllAvailableSeat: true,
-                sort: "Recommend",
-                promotions: null,
-              },
+              }
+            : {
+                areaNo: target.areaNo,
+              };
+
+          const result = await searchProductMaster({
+            ...searchParams,
+            searchFrom: startDate,
+            searchTo: endDate,
+            pageNo,
+            pageSize: 100,
+          });
+
+          totalPages = result.result.totalPages || 1;
+          const masters = result.result.productMaster || [];
+
+          for (const master of masters) {
+            if (seenCodes.has(master.masterCode)) continue;
+            seenCodes.add(master.masterCode);
+
+            try {
+              const saveResult = await saveProductMaster(master, target, { ftpClient });
+
+              if (saveResult.status === "created") {
+                results.created++;
+              } else if (saveResult.status === "updated") {
+                results.updated++;
+              }
+            } catch (err) {
+              results.failed++;
+
+              if (err.message.includes("Timeout") || err.message.includes("closed")) {
+                try {
+                  ftpClient.close();
+                } catch {}
+                ftpClient = await createClient();
+              }
             }
-          : {
-              areaNo: target.areaNo,
-            };
-
-        const result = await searchProductMaster({
-          ...searchParams,
-          searchFrom: startDate,
-          searchTo: endDate,
-          pageNo,
-          pageSize: 100,
-        });
-
-        totalPages = result.result.totalPages || 1;
-        const masters = result.result.productMaster || [];
-
-        for (const master of masters) {
-          // 중복 체크
-          if (seenCodes.has(master.masterCode)) continue;
-          seenCodes.add(master.masterCode);
-
-          try {
-            const existing = await ProductMaster.findOne({
-              masterCode: master.masterCode,
-            });
-            await saveProductMaster(master, target);
-
-            if (existing) {
-              results.updated++;
-            } else {
-              results.created++;
-            }
-          } catch (err) {
-            results.failed++;
           }
+
+          await sleep(delayMs);
+        } catch (err) {
+          console.error(
+            `${target.type} ${target.areaNo || target.themeNo} page ${pageNo} failed:`,
+            err.message,
+          );
         }
 
-        await sleep(delayMs);
-      } catch (err) {
-        console.error(
-          `${target.type} ${target.areaNo || target.themeNo} page ${pageNo} failed:`,
-          err.message,
-        );
+        pageNo++;
+      } while (pageNo <= totalPages);
+
+      if (onProgress) {
+        onProgress({
+          current: i + 1,
+          total: normalizedTargets.length,
+          target,
+          ...results,
+        });
       }
-
-      pageNo++;
-    } while (pageNo <= totalPages);
-
-    if (onProgress) {
-      onProgress({
-        current: i + 1,
-        total: normalizedTargets.length,
-        target,
-        ...results,
-      });
+    }
+  } finally {
+    if (ftpClient) {
+      ftpClient.close();
     }
   }
 
