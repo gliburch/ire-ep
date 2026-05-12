@@ -1,7 +1,7 @@
 const { generateEpFile, generateEpFileFromProductMasters, generateEpFileFromDb, syncProductImages, syncProductMasterImages } = require("../services/epService");
 const { uploadEpFile } = require("../services/ftpService");
 const { getProductMasterSearchTargets } = require("../services/scraperService");
-const { runDailyScrapeJob } = require("../services/schedulerService");
+const { DAILY_BATCH_COUNT, runDailyScrapeBatch, runDailyFinalizeJob } = require("../services/schedulerService");
 const ProductMaster = require("../models/ProductMaster");
 
 async function epRoutes(fastify) {
@@ -112,10 +112,20 @@ async function epRoutes(fastify) {
 
   // 데일리 배치 수동 실행
   fastify.post("/ep/daily-run", async (request, reply) => {
-    const result = await runDailyScrapeJob(fastify.log);
+    const finalize = request.query.finalize === "true";
+    const batchIndex = request.query.batchIndex !== undefined
+      ? parseInt(request.query.batchIndex, 10)
+      : null;
+    const result = finalize
+      ? await runDailyFinalizeJob({ logger: fastify.log })
+      : await runDailyScrapeBatch(
+          Number.isInteger(batchIndex) ? batchIndex : 0,
+          { logger: fastify.log },
+        );
 
     return {
       success: !result.skipped,
+      batchCount: DAILY_BATCH_COUNT,
       ...result,
     };
   });

@@ -56,6 +56,8 @@ npm run dev
 - `MODETOUR_COMPANY_NO`
 - `MODETOUR_DEVICE_TYPE`
 - `CRON_SECRET`
+- `DAILY_SCRAPE_BATCH_COUNT`
+- `DAILY_BATCH_TIMEZONE`
 
 ## 주요 엔드포인트
 
@@ -140,10 +142,11 @@ config/
 
 ## 데일리 자동 배치
 
-- Vercel Cron으로 매일 `23:00 KST`에 자동 배치가 동작합니다.
-- `vercel.json`의 스케줄은 UTC 기준이므로 `23:00 KST = 14:00 UTC`로 설정되어 있습니다.
-- 자동 배치는 `GetGnb -> ProductMaster 전체 검색 -> 이번 배치에서 검색된 masterCode만 EP 생성 -> FTP 업로드` 순서로 실행됩니다.
+- Vercel Cron으로 배치를 여러 번 나눠 실행합니다.
+- `vercel.json`의 스케줄은 UTC 기준이며, `23:00 KST = 14:00 UTC`부터 5분 간격으로 스크래핑 배치가 실행됩니다.
+- 스크래핑 배치 5개가 `GetGnb` 대상의 일부씩만 처리하고, 마지막 `finalize` 배치에서만 EP 생성과 FTP 업로드를 수행합니다.
+- 자동 배치는 `GetGnb -> 대상 분할 스크래핑 -> 당일 배치에서 검색된 masterCode 누적 -> finalize에서만 EP 생성 -> FTP 업로드` 순서로 실행됩니다.
 - 업로드 파일명은 항상 `ire_naver_ep.txt`이며, 기존 파일을 덮어씁니다.
-- 크론 호출 엔드포인트는 [api/cron/daily-scrape.js](/Users/gyeonglin.kim/Projects/ire/ire-ep/api/cron/daily-scrape.js) 입니다.
-- `CRON_SECRET`이 설정되어 있으면 `Authorization: Bearer <CRON_SECRET>`로만 실행됩니다.
-- 수동 실행이 필요하면 `POST /ep/daily-run`으로 같은 배치를 즉시 실행할 수 있습니다.
+- 크론 호출 엔드포인트는 [api/cron](</Users/gyeonglin.kim/Projects/ire/ire-ep/api/cron>) 아래의 `daily-scrape-1..5`, `daily-finalize` 입니다.
+- `CRON_SECRET`은 필수이며, 모든 크론 엔드포인트는 `Authorization: Bearer <CRON_SECRET>`로만 실행됩니다.
+- 수동 실행이 필요하면 `POST /ep/daily-run?batchIndex=0` 같은 방식으로 배치 하나를 실행하고, `POST /ep/daily-run?finalize=true`로 최종 EP 업로드를 실행할 수 있습니다.
