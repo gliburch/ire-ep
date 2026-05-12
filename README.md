@@ -55,10 +55,7 @@ npm run dev
 - `MODETOUR_WEBSITE_NO`
 - `MODETOUR_COMPANY_NO`
 - `MODETOUR_DEVICE_TYPE`
-- `DAILY_SCRAPE_ENABLED`
-- `DAILY_SCRAPE_HOUR`
-- `DAILY_SCRAPE_MINUTE`
-- `DAILY_SCRAPE_TIMEZONE`
+- `CRON_SECRET`
 
 ## 주요 엔드포인트
 
@@ -143,7 +140,10 @@ config/
 
 ## 데일리 자동 배치
 
-- 서버가 실행 중이면 매일 `23:00`에 자동 배치가 동작합니다.
+- Vercel Cron으로 매일 `23:00 KST`에 자동 배치가 동작합니다.
+- `vercel.json`의 스케줄은 UTC 기준이므로 `23:00 KST = 14:00 UTC`로 설정되어 있습니다.
 - 자동 배치는 `GetGnb -> ProductMaster 전체 검색 -> 이번 배치에서 검색된 masterCode만 EP 생성 -> FTP 업로드` 순서로 실행됩니다.
 - 업로드 파일명은 항상 `ire_naver_ep.txt`이며, 기존 파일을 덮어씁니다.
+- 크론 호출 엔드포인트는 [api/cron/daily-scrape.js](/Users/gyeonglin.kim/Projects/ire/ire-ep/api/cron/daily-scrape.js) 입니다.
+- `CRON_SECRET`이 설정되어 있으면 `Authorization: Bearer <CRON_SECRET>`로만 실행됩니다.
 - 수동 실행이 필요하면 `POST /ep/daily-run`으로 같은 배치를 즉시 실행할 수 있습니다.

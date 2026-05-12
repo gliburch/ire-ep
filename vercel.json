@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/daily-scrape",
+      "schedule": "0 14 * * *"
+    }
+  ],
+  "functions": {
+    "api/cron/daily-scrape.js": {
+      "maxDuration": 800
+    }
+  }
+}

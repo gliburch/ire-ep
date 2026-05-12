@@ -3,21 +3,9 @@ const fastify = require('fastify')({ logger: true });
 const mongoose = require('mongoose');
 const routes = require('./routes');
 const { validateEnv } = require('./config/env');
-const { startDailyScheduler } = require('./services/schedulerService');
+const { connectDB } = require('./config/db');
 
-const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_DB = process.env.MONGODB_DB;
 const PORT = process.env.PORT || 3000;
-
-async function connectDB() {
-  try {
-    await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
-    fastify.log.info(`MongoDB connected to database: ${MONGODB_DB}`);
-  } catch (err) {
-    fastify.log.error('MongoDB connection error:', err);
-    process.exit(1);
-  }
-}
 
 // 전역 에러 핸들러
 fastify.setErrorHandler((error, request, reply) => {
@@ -73,8 +61,12 @@ fastify.get('/health', async () => {
 
 async function start() {
   validateEnv();
-  await connectDB();
-  startDailyScheduler(fastify.log);
+  try {
+    await connectDB(fastify.log);
+  } catch (err) {
+    fastify.log.error('MongoDB connection error:', err);
+    process.exit(1);
+  }
 
   try {
     await fastify.listen({ port: PORT });
