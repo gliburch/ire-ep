@@ -1,6 +1,7 @@
 const { generateEpFile, generateEpFileFromProductMasters, generateEpFileFromDb, syncProductImages, syncProductMasterImages } = require("../services/epService");
 const { uploadEpFile } = require("../services/ftpService");
 const { getProductMasterSearchTargets } = require("../services/scraperService");
+const { runDailyScrapeJob } = require("../services/schedulerService");
 const ProductMaster = require("../models/ProductMaster");
 
 async function epRoutes(fastify) {
@@ -107,6 +108,16 @@ async function epRoutes(fastify) {
     const result = await syncProductMasterImages({ limit, onlyPending });
 
     return { success: true, ...result };
+  });
+
+  // 데일리 배치 수동 실행
+  fastify.post("/ep/daily-run", async (request, reply) => {
+    const result = await runDailyScrapeJob(fastify.log);
+
+    return {
+      success: !result.skipped,
+      ...result,
+    };
   });
 }
 

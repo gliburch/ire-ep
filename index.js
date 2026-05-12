@@ -3,6 +3,7 @@ const fastify = require('fastify')({ logger: true });
 const mongoose = require('mongoose');
 const routes = require('./routes');
 const { validateEnv } = require('./config/env');
+const { startDailyScheduler } = require('./services/schedulerService');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB = process.env.MONGODB_DB;
@@ -73,6 +74,7 @@ fastify.get('/health', async () => {
 async function start() {
   validateEnv();
   await connectDB();
+  startDailyScheduler(fastify.log);
 
   try {
     await fastify.listen({ port: PORT });

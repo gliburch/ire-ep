@@ -696,7 +696,11 @@ async function saveProductMaster(master, target, options = {}) {
  * 전체 ProductMaster 스크래핑 및 DB 저장
  */
 async function scrapeAllProductMasters(targets, startDate, endDate, options = {}) {
-  const { onProgress, delayMs = 100 } = options;
+  const {
+    onProgress,
+    delayMs = 100,
+    collectMasterCodes = false,
+  } = options;
   const results = { created: 0, updated: 0, failed: 0 };
   const seenCodes = new Set();
   const normalizedTargets = Array.isArray(targets)
@@ -826,6 +830,13 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
     if (ftpClient) {
       ftpClient.close();
     }
+  }
+
+  if (collectMasterCodes) {
+    return {
+      ...results,
+      masterCodes: Array.from(seenCodes),
+    };
   }
 
   return results;

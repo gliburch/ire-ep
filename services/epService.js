@@ -447,20 +447,88 @@ async function generateEpFileFromProductMasters(targets, startDate, endDate, opt
 }
 
 /**
+ * masterCode 목록 기준 EP 파일 생성
+ * @param {string[]} masterCodes - 이번 배치에서 검색된 masterCode 목록
+ * @param {object} options - 옵션
+ * @param {boolean} options.uploadImages - 이미지를 FTP에 업로드할지 여부
+ */
+async function generateEpFileFromMasterCodes(masterCodes, options = {}) {
+  const {
+    uploadImages = false,
+  } = options;
+  const normalizedMasterCodes = Array.from(
+    new Set((masterCodes || []).filter(Boolean)),
+  );
+
+  if (normalizedMasterCodes.length === 0) {
+    return {
+      content: EP_HEADERS.join("\t"),
+      count: 0,
+    };
+  }
+
+  const masters = await ProductMaster.find({
+    masterCode: { $in: normalizedMasterCodes },
+  }).lean();
+  const masterByCode = new Map(masters.map((master) => [master.masterCode, master]));
+
+  let ftpWrapper = null;
+  if (uploadImages) {
+    clearCache();
+    ftpWrapper = new FtpClientWrapper();
+  }
+
+  const epDataList = [];
+
+  try {
+    for (const masterCode of normalizedMasterCodes) {
+      const master = masterByCode.get(masterCode);
+      if (!master?.epData) continue;
+
+      const epData = { ...master.epData };
+
+      if (uploadImages && ftpWrapper && epData.image_link) {
+        epData.image_link = await ftpWrapper.uploadImage(epData.image_link);
+      }
+
+      epDataList.push(epData);
+    }
+  } finally {
+    if (ftpWrapper) {
+      ftpWrapper.close();
+    }
+  }
+
+  const headerRow = EP_HEADERS.join("\t");
+  const dataRows = epDataList.map((ep) => productToTsvRow(ep));
+
+  return {
+    content: [headerRow, ...dataRows].join("\n"),
+    count: epDataList.length,
+  };
+}
+
+/**
  * DB에 저장된 ProductMaster 기반 EP 파일 생성
  * - 최근 24시간 내 업데이트된 ProductMaster만 포함
  * @param {object} options - 옵션
  * @param {boolean} options.uploadImages - 이미지를 FTP에 업로드할지 여부
+ * @param {boolean} options.recentOnly - 최근 24시간 내 업데이트된 ProductMaster만 포함할지 여부
  */
 async function generateEpFileFromDb(options = {}) {
-  const { uploadImages = false } = options;
+  const {
+    uploadImages = false,
+    recentOnly = true,
+  } = options;
 
-  // 24시간 전
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const query = {};
 
-  const masters = await ProductMaster.find({
-    updated_at: { $gte: since },
-  }).lean();
+  if (recentOnly) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    query.updated_at = { $gte: since };
+  }
+
+  const masters = await ProductMaster.find(query).lean();
 
   let ftpWrapper = null;
   if (uploadImages) {
@@ -503,6 +571,7 @@ module.exports = {
   EP_HEADERS,
   generateEpFile,
   generateEpFileFromProductMasters,
+  generateEpFileFromMasterCodes,
   generateEpFileFromDb,
   syncProductImages,
   syncProductMasterImages,

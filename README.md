@@ -55,6 +55,10 @@ npm run dev
 - `MODETOUR_WEBSITE_NO`
 - `MODETOUR_COMPANY_NO`
 - `MODETOUR_DEVICE_TYPE`
+- `DAILY_SCRAPE_ENABLED`
+- `DAILY_SCRAPE_HOUR`
+- `DAILY_SCRAPE_MINUTE`
+- `DAILY_SCRAPE_TIMEZONE`
 
 ## 주요 엔드포인트
 
@@ -136,3 +140,10 @@ config/
 15. 신규 `masterCode`는 이미지를 Cafe24 FTP에 업로드한 뒤 `epData`에 FTP URL을 반영합니다.
 16. 신규 상품만 `ProductMaster`로 생성합니다.
 17. 전체 순회가 끝나면 `created`, `updated`, `failed` 집계를 반환합니다.
+
+## 데일리 자동 배치
+
+- 서버가 실행 중이면 매일 `23:00`에 자동 배치가 동작합니다.
+- 자동 배치는 `GetGnb -> ProductMaster 전체 검색 -> 이번 배치에서 검색된 masterCode만 EP 생성 -> FTP 업로드` 순서로 실행됩니다.
+- 업로드 파일명은 항상 `ire_naver_ep.txt`이며, 기존 파일을 덮어씁니다.
+- 수동 실행이 필요하면 `POST /ep/daily-run`으로 같은 배치를 즉시 실행할 수 있습니다.
