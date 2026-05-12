@@ -9,6 +9,7 @@ const {
 } = require("./ftpService");
 const DOMESTIC_PATH_NAME = "국내여행";
 const AREA_TARGET_PATH_NAMES = new Set(["해외여행", "지방출발"]);
+const DOMESTIC_NAVER_CATEGORY = 50007253;
 const OVERSEAS_NAVER_CATEGORY = 50007257;
 
 /**
@@ -252,7 +253,7 @@ function transformProductMasterToEpData(productMaster, options = {}) {
     ? {
         category_name2: "국내여행",
         category_name3: "국내패키지/기타",
-        naver_category: "",
+        naver_category: DOMESTIC_NAVER_CATEGORY,
       }
     : {
         category_name2: "해외여행",
