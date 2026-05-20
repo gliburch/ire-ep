@@ -704,7 +704,11 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
   const results = { created: 0, updated: 0, failed: 0 };
   const seenCodes = new Set();
   const normalizedTargets = Array.isArray(targets)
-    ? targets.map((areaNo) => ({ type: "area", areaNo, name: String(areaNo) }))
+    ? targets.map((target) => (
+        target && typeof target === "object"
+          ? target
+          : { type: "area", areaNo: target, name: String(target) }
+      ))
     : [
         ...(targets?.areaTargets || []),
         ...(targets?.themeTargets || []),
