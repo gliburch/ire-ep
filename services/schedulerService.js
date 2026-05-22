@@ -1,12 +1,8 @@
-const fs = require("fs");
-const path = require("path");
 const { getEnv } = require("../config/env");
 const DailyBatchState = require("../models/DailyBatchState");
 const { getProductMasterSearchTargets, scrapeAllProductMasters } = require("./scraperService");
 const { generateEpFileFromMasterCodes } = require("./epService");
 const { uploadEpFile } = require("./ftpService");
-
-const DAILY_EP_FILENAME = "ire_naver_ep.txt";
 const DAILY_BATCH_COUNT = Number(getEnv("DAILY_SCRAPE_BATCH_COUNT", "5"));
 const DAILY_BATCH_TIMEZONE = getEnv("DAILY_BATCH_TIMEZONE", "Asia/Seoul");
 
@@ -173,10 +169,7 @@ async function runDailyFinalizeJob(options = {}) {
 
     const epResult = await generateEpFileFromMasterCodes(state.masterCodes);
     const normalizedContent = epResult.content.replace(/^\uFEFF/, "");
-    const localFilePath = path.join(process.cwd(), DAILY_EP_FILENAME);
-
-    fs.writeFileSync(localFilePath, normalizedContent, "utf8");
-    const url = await uploadEpFile(normalizedContent, DAILY_EP_FILENAME);
+    const url = await uploadEpFile(normalizedContent, "ire_naver_ep.txt");
 
     state.finalizedAt = new Date();
     await state.save();
@@ -187,7 +180,6 @@ async function runDailyFinalizeJob(options = {}) {
       completedBatches: state.completedBatches.length,
       epCount: epResult.count,
       url,
-      file: localFilePath,
     }, "Daily finalize job completed");
 
     return {
@@ -197,7 +189,6 @@ async function runDailyFinalizeJob(options = {}) {
       completedBatches: state.completedBatches,
       epCount: epResult.count,
       url,
-      file: localFilePath,
     };
   } finally {
     jobRunning = false;
