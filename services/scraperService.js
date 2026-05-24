@@ -11,6 +11,13 @@ const DOMESTIC_PATH_NAME = "국내여행";
 const AREA_TARGET_PATH_NAMES = new Set(["해외여행", "지방출발"]);
 const DOMESTIC_NAVER_CATEGORY = 50007253;
 const OVERSEAS_NAVER_CATEGORY = 50007257;
+const TITLE_BRAND_TERMS = [
+  "모두투어",
+  "모두 투어",
+  "modetour",
+  "이레투어클럽",
+  "이레투어",
+];
 
 /**
  * 네이버 EP 상품 ID 정제
@@ -38,8 +45,14 @@ function sanitizeTitle(value) {
   if (!value) {
     throw new Error("상품명이 없습니다");
   }
-  const sanitized = String(value)
+  const withoutBrands = TITLE_BRAND_TERMS.reduce(
+    (title, brand) => title.replace(new RegExp(brand, "gi"), " "),
+    String(value),
+  );
+  const sanitized = withoutBrands
     .replace(/[\t\n\r\x00-\x1F\x7F]/g, " ")
+    .replace(/[\[\]【】]/g, " ")
+    .replace(/[^0-9A-Za-z가-힣\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!sanitized) {
@@ -345,7 +358,7 @@ function transformToEpData(rawData) {
   return {
     // 필수: id, title, price_pc, link, image_link, category_name1, shipping
     id: sanitizeId(rawId),
-    title: data.productName || "", // title 클렌징 여부
+    title: sanitizeTitle(data.productName || ""),
     price_pc: data.benefitPriceInfo?.price || 1,
     benefit_price: data.benefitPriceInfo?.discountPrice || 1,
     normal_price: data.productPriceAdultTotalAmount || 1,
