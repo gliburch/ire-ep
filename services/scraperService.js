@@ -863,6 +863,7 @@ module.exports = {
   fetchProductFromApi,
   fetchGnb,
   getProductMasterSearchTargets,
+  sanitizeTitle,
   transformToEpData,
   transformProductMasterToEpData,
   scrapeAndSave,

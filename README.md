@@ -95,6 +95,11 @@ npm run dev
 - `GET /ep/db/stats`
 - `POST /ep/sync-images?limit=10`
 
+### 운영 스크립트
+
+- `npm run backfill:ep-titles`
+  기존 `Product`, `ProductMaster` 문서의 `epData.title`을 현재 제목 정제 규칙으로 일괄 갱신합니다.
+
 ## 현재 구조
 
 ```text
