@@ -17,30 +17,6 @@ const AREA_TARGET_PATH_NAMES = new Set(["해외여행", "지방출발"]);
 const DOMESTIC_NAVER_CATEGORY = 50007253;
 const OVERSEAS_NAVER_CATEGORY = 50007257;
 
-async function uploadEpImagesForNewMaster(epData, client) {
-  if (!client || !epData) {
-    return epData;
-  }
-
-  const nextEpData = { ...epData };
-
-  if (nextEpData.image_link && !nextEpData.image_link.includes("cafe24.com")) {
-    nextEpData.image_link = await uploadImageToFtp(client, nextEpData.image_link);
-  }
-
-  if (nextEpData.add_image_link && !nextEpData.add_image_link.includes("cafe24.com")) {
-    const uploadedUrls = [];
-
-    for (const url of nextEpData.add_image_link.split("|").filter(Boolean)) {
-      uploadedUrls.push(await uploadImageToFtp(client, url));
-    }
-
-    nextEpData.add_image_link = uploadedUrls.join("|");
-  }
-
-  return nextEpData;
-}
-
 /**
  * GNB 트리 조회
  */
@@ -111,20 +87,25 @@ async function getProductMasterSearchTargets() {
     }
   });
 
-  return {
-    areaTargets: Array.from(areaTargetMap.values()).sort((a, b) => a.areaNo - b.areaNo),
-    themeTargets: Array.from(themeTargetMap.values()).sort((a, b) => a.themeNo - b.themeNo),
-  };
+  return [
+    ...Array.from(areaTargetMap.values()).sort((a, b) => a.areaNo - b.areaNo),
+    ...Array.from(themeTargetMap.values()).sort((a, b) => a.themeNo - b.themeNo),
+  ];
 }
 
 /**
- * ProductMaster를 네이버 EP 형식으로 변환
+ * ProductMaster를 최종 네이버 EP 형식으로 생성
+ * - 기본 EP 필드 생성
+ * - 이미지 URL을 FTP URL로 치환
  */
-function transformProductMasterToEpData(productMaster, options = {}) {
-  const { target } = options;
+async function buildProductMasterEpData(productMaster, options = {}) {
+  const { searchTarget, ftpClient = null } = options;
   const masterCode = productMaster.masterCode || "";
   const masterCodeNo = productMaster.masterCodeNo || "";
-  const isDomestic = target?.type === "theme";
+  const isDomestic = searchTarget?.type === "theme";
+  const imageLink = productMaster.image
+    ? (ftpClient ? await uploadImageToFtp(ftpClient, productMaster.image) : productMaster.image)
+    : "";
 
   // ID 생성: masterCode_PGE_IRE
   const rawId = `${masterCode}_PGE_IRE`;
@@ -175,13 +156,13 @@ function transformProductMasterToEpData(productMaster, options = {}) {
         naver_category: OVERSEAS_NAVER_CATEGORY,
       };
 
-  return {
+  const epData = {
     id: sanitizeId(rawId),
     title: sanitizeTitle(productMaster.masterProductName || ""),
     price_pc: productMaster.price || 1,
     link,
     mobile_link: mobileLink,
-    image_link: productMaster.image || "",
+    image_link: imageLink,
     category_name1: "여가/생활편의",
     category_name2: categories.category_name2,
     category_name3: categories.category_name3,
@@ -196,6 +177,8 @@ function transformProductMasterToEpData(productMaster, options = {}) {
     attribute,
     gender: "남녀공용",
   };
+
+  return epData;
 }
 
 /**
@@ -234,10 +217,10 @@ async function searchProductMaster(params) {
  * - 신규: 이미지 FTP 업로드 후 생성
  * - 기존: updated_at만 갱신
  */
-async function saveProductMaster(master, target, options = {}) {
+async function saveProductMaster(productMaster, searchTarget, options = {}) {
   const { ftpClient = null } = options;
   const existing = await ProductMaster.findOne({
-    masterCode: master.masterCode,
+    masterCode: productMaster.masterCode,
   }).select("_id");
 
   if (existing) {
@@ -249,17 +232,19 @@ async function saveProductMaster(master, target, options = {}) {
     return { status: "updated" };
   }
 
-  const epData = transformProductMasterToEpData(master, { target });
-  const uploadedEpData = await uploadEpImagesForNewMaster(epData, ftpClient);
+  const epData = await buildProductMasterEpData(productMaster, {
+    searchTarget,
+    ftpClient,
+  });
 
   await ProductMaster.create({
-    masterCode: master.masterCode,
-    masterCodeNo: master.masterCodeNo,
+    masterCode: productMaster.masterCode,
+    masterCodeNo: productMaster.masterCodeNo,
     rawData: {
-      ...master,
-      _searchTarget: target || null,
+      ...productMaster,
+      _searchTarget: searchTarget || null,
     },
-    epData: uploadedEpData,
+    epData,
   });
 
   return { status: "created" };
@@ -268,23 +253,13 @@ async function saveProductMaster(master, target, options = {}) {
 /**
  * 전체 ProductMaster 스크래핑 및 DB 저장
  */
-async function scrapeAllProductMasters(targets, startDate, endDate, options = {}) {
+async function scrapeAllProductMasters(searchTargets, startDate, endDate, options = {}) {
   const {
     onProgress,
     delayMs = 100,
   } = options;
   const results = { created: 0, updated: 0, failed: 0 };
   const seenCodes = new Set();
-  const normalizedTargets = Array.isArray(targets)
-    ? targets.map((target) => (
-        target && typeof target === "object"
-          ? target
-          : { type: "area", areaNo: target, name: String(target) }
-      ))
-    : [
-        ...(targets?.areaTargets || []),
-        ...(targets?.themeTargets || []),
-      ];
 
   resetImageUploadCache();
 
@@ -293,58 +268,20 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
   try {
     ftpClient = await createFtpClient();
 
-    for (let i = 0; i < normalizedTargets.length; i++) {
-      const target = normalizedTargets[i];
+    for (let i = 0; i < searchTargets.length; i++) {
+      const searchTarget = searchTargets[i];
       let pageNo = 1;
       let totalPages = 1;
 
       do {
         try {
-          const searchParams = target.type === "theme"
+          const searchParams = searchTarget.type === "theme"
             ? {
                 areaNo: 0,
-                themeNo: target.themeNo,
-                travelType: "GNBDomesticTravel",
-                deviceType: "DVTPC",
-                filter: {
-                  typeFilter: "PGTDomesticTravel",
-                  minPrice: 0,
-                  maxPrice: 0,
-                  startingPoint: [],
-                  destination: null,
-                  travelConcept: null,
-                  endLocation: null,
-                  transport: null,
-                  transportation: null,
-                  promotion: null,
-                  tourCondition: {
-                    airSeatClass: null,
-                    airPortTax: null,
-                    localTraffic: null,
-                    mealFee: null,
-                    dolomites: null,
-                    roomCharge: null,
-                    entranceFee: null,
-                    neccessaryLocalExpenses: null,
-                    localGuide: null,
-                    guideYn: null,
-                    shopping: null,
-                    freeSchedule: null,
-                    optionalTour: null,
-                  },
-                  depatureDay: null,
-                  productBrand: null,
-                  lodgment: null,
-                  travelPeriod: null,
-                  travelType: ["패키지"],
-                  depatureTime: null,
-                  isViewAllAvailableSeat: true,
-                  sort: "Recommend",
-                  promotions: null,
-                },
+                themeNo: searchTarget.themeNo,
               }
             : {
-                areaNo: target.areaNo,
+                areaNo: searchTarget.areaNo,
               };
 
           const result = await searchProductMaster({
@@ -358,12 +295,12 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
           totalPages = result.result.totalPages || 1;
           const masters = result.result.productMaster || [];
 
-          for (const master of masters) {
-            if (seenCodes.has(master.masterCode)) continue;
-            seenCodes.add(master.masterCode);
+          for (const productMaster of masters) {
+            if (seenCodes.has(productMaster.masterCode)) continue;
+            seenCodes.add(productMaster.masterCode);
 
             try {
-              const saveResult = await saveProductMaster(master, target, { ftpClient });
+              const saveResult = await saveProductMaster(productMaster, searchTarget, { ftpClient });
 
               if (saveResult.status === "created") {
                 results.created++;
@@ -372,6 +309,15 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
               }
             } catch (err) {
               results.failed++;
+              console.error(
+                "saveProductMaster failed:",
+                {
+                  masterCode: productMaster.masterCode,
+                  searchTargetType: searchTarget.type,
+                  searchTargetValue: searchTarget.areaNo || searchTarget.themeNo,
+                  message: err.message,
+                },
+              );
 
               if (err.message.includes("Timeout") || err.message.includes("closed")) {
                 try {
@@ -385,7 +331,7 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
           await sleep(delayMs);
         } catch (err) {
           console.error(
-            `${target.type} ${target.areaNo || target.themeNo} page ${pageNo} failed:`,
+            `${searchTarget.type} ${searchTarget.areaNo || searchTarget.themeNo} page ${pageNo} failed:`,
             err.message,
           );
         }
@@ -396,8 +342,8 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
       if (onProgress) {
         onProgress({
           current: i + 1,
-          total: normalizedTargets.length,
-          target,
+          total: searchTargets.length,
+          target: searchTarget,
           ...results,
         });
       }

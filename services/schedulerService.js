@@ -69,25 +69,17 @@ function getDateKeyRange(dateKey, timeZone = DAILY_BATCH_TIMEZONE) {
   };
 }
 
-function flattenTargets(targets) {
-  return [
-    ...(targets?.areaTargets || []),
-    ...(targets?.themeTargets || []),
-  ];
-}
-
-function getTargetSlice(targets, batchIndex, batchCount = DAILY_BATCH_COUNT) {
+function getTargetSlice(searchTargets, batchIndex, batchCount = DAILY_BATCH_COUNT) {
   const normalizedBatchCount = Math.max(1, batchCount);
   const normalizedBatchIndex = Math.max(0, Math.min(batchIndex, normalizedBatchCount - 1));
-  const flatTargets = flattenTargets(targets);
-  const sliceSize = Math.ceil(flatTargets.length / normalizedBatchCount);
+  const sliceSize = Math.ceil(searchTargets.length / normalizedBatchCount);
   const start = normalizedBatchIndex * sliceSize;
   const end = start + sliceSize;
 
   return {
-    allTargets: flatTargets.length,
+    allTargets: searchTargets.length,
     sliceSize,
-    targets: flatTargets.slice(start, end),
+    targets: searchTargets.slice(start, end),
   };
 }
 
@@ -130,8 +122,8 @@ async function runDailyScrapeBatch(batchIndex, options = {}) {
 
   try {
     const { startDate, endDate } = getDailyWindow();
-    const targetGroups = await getProductMasterSearchTargets();
-    const { targets, allTargets, sliceSize } = getTargetSlice(targetGroups, batchIndex, batchCount);
+    const searchTargets = await getProductMasterSearchTargets();
+    const { targets, allTargets, sliceSize } = getTargetSlice(searchTargets, batchIndex, batchCount);
     const batchKey = `${dateKey}:batch-${batchIndex + 1}-of-${batchCount}`;
 
     logger.info?.({
