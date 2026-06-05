@@ -412,10 +412,6 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
 }
 
 module.exports = {
-  fetchGnb,
   getProductMasterSearchTargets,
-  transformProductMasterToEpData,
-  searchProductMaster,
-  saveProductMaster,
   scrapeAllProductMasters,
 };

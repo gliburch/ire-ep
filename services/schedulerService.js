@@ -259,10 +259,6 @@ async function runDailyFinalizeJob(options = {}) {
 }
 
 module.exports = {
-  DAILY_BATCH_COUNT,
-  DAILY_BATCH_TIMEZONE,
-  getDateKey,
-  getTargetSlice,
   runDailyScrapeBatch,
   runDailyFinalizeJob,
 };
