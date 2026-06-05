@@ -70,6 +70,9 @@ function getDateKeyRange(dateKey, timeZone = DAILY_BATCH_TIMEZONE) {
   };
 }
 
+/**
+ * 전체 searchTargets 중 현재 배치가 처리할 구간만 잘라낸다
+ */
 function sliceSearchTargetsForBatch(searchTargets, batchIndex, batchCount = DAILY_BATCH_COUNT) {
   const normalizedBatchCount = Math.max(1, batchCount);
   const normalizedBatchIndex = Math.max(0, Math.min(batchIndex, normalizedBatchCount - 1));
@@ -84,6 +87,9 @@ function sliceSearchTargetsForBatch(searchTargets, batchIndex, batchCount = DAIL
   };
 }
 
+/**
+ * 일자별 배치 완료 상태와 처리 통계를 누적 저장한다
+ */
 async function appendBatchState(dateKey, batchKey, scrapeResult) {
   const update = {
     $addToSet: {

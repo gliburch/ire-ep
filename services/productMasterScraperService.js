@@ -1,3 +1,5 @@
+const axios = require("axios");
+const apiConfig = require("../config/apiConfig");
 const ProductMaster = require("../models/ProductMaster");
 const {
   createFtpClient,
@@ -171,6 +173,9 @@ async function saveProductMaster(productMaster, searchTarget, options = {}) {
 
 /**
  * 전체 ProductMaster 스크래핑 및 DB 저장
+ * - searchTargets를 순회하며 SearchProductMaster를 페이지 단위로 조회
+ * - masterCode 중복을 제거하면서 DB에 저장
+ * - created/updated/failed 집계를 반환
  */
 async function scrapeAllProductMasters(searchTargets, startDate, endDate, options = {}) {
   const {

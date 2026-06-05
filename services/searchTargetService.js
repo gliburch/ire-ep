@@ -4,6 +4,9 @@ const apiConfig = require("../config/apiConfig");
 const DOMESTIC_PATH_NAME = "국내여행";
 const AREA_TARGET_PATH_NAMES = new Set(["해외여행", "지방출발"]);
 
+/**
+ * GetGnb 응답 트리를 재귀 순회하며 각 노드와 경로를 visit에 전달
+ */
 function walkGnbTree(value, path, visit) {
   if (Array.isArray(value)) {
     for (const item of value) {
@@ -29,6 +32,9 @@ function walkGnbTree(value, path, visit) {
   }
 }
 
+/**
+ * 모두투어 GetGnb API를 호출해 최신 메뉴 트리를 가져온다
+ */
 async function fetchGnb() {
   const { baseUrl, endpoints, headers } = apiConfig.modetour;
   const url = `${baseUrl}${endpoints.getGnb}`;
