@@ -10,12 +10,36 @@ const {
   sanitizeId,
   sanitizeTitle,
   sleep,
-  walkGnbTree,
 } = require("./scraperUtils");
 const DOMESTIC_PATH_NAME = "국내여행";
 const AREA_TARGET_PATH_NAMES = new Set(["해외여행", "지방출발"]);
 const DOMESTIC_NAVER_CATEGORY = 50007253;
 const OVERSEAS_NAVER_CATEGORY = 50007257;
+
+function walkGnbTree(value, path, visit) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      walkGnbTree(item, path, visit);
+    }
+    return;
+  }
+
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  const nextPath = value.gnbCategoryName
+    ? [...path, value.gnbCategoryName]
+    : path;
+
+  visit(value, nextPath);
+
+  for (const childValue of Object.values(value)) {
+    if (childValue && typeof childValue === "object") {
+      walkGnbTree(childValue, nextPath, visit);
+    }
+  }
+}
 
 /**
  * GNB 트리 조회

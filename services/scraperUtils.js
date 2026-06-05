@@ -55,37 +55,8 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * GNB 트리 순회 헬퍼
- */
-function walkGnbTree(value, path, visit) {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      walkGnbTree(item, path, visit);
-    }
-    return;
-  }
-
-  if (!value || typeof value !== "object") {
-    return;
-  }
-
-  const nextPath = value.gnbCategoryName
-    ? [...path, value.gnbCategoryName]
-    : path;
-
-  visit(value, nextPath);
-
-  for (const childValue of Object.values(value)) {
-    if (childValue && typeof childValue === "object") {
-      walkGnbTree(childValue, nextPath, visit);
-    }
-  }
-}
-
 module.exports = {
   sanitizeId,
   sanitizeTitle,
   sleep,
-  walkGnbTree,
 };
