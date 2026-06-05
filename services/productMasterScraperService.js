@@ -2,9 +2,9 @@ const axios = require("axios");
 const apiConfig = require("../config/apiConfig");
 const ProductMaster = require("../models/ProductMaster");
 const {
-  createClient,
-  uploadImageWithClient,
-  clearCache,
+  createFtpClient,
+  uploadImageToFtp,
+  resetImageUploadCache,
 } = require("./ftpService");
 const {
   sanitizeId,
@@ -25,14 +25,14 @@ async function uploadEpImagesForNewMaster(epData, client) {
   const nextEpData = { ...epData };
 
   if (nextEpData.image_link && !nextEpData.image_link.includes("cafe24.com")) {
-    nextEpData.image_link = await uploadImageWithClient(client, nextEpData.image_link);
+    nextEpData.image_link = await uploadImageToFtp(client, nextEpData.image_link);
   }
 
   if (nextEpData.add_image_link && !nextEpData.add_image_link.includes("cafe24.com")) {
     const uploadedUrls = [];
 
     for (const url of nextEpData.add_image_link.split("|").filter(Boolean)) {
-      uploadedUrls.push(await uploadImageWithClient(client, url));
+      uploadedUrls.push(await uploadImageToFtp(client, url));
     }
 
     nextEpData.add_image_link = uploadedUrls.join("|");
@@ -286,12 +286,12 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
         ...(targets?.themeTargets || []),
       ];
 
-  clearCache();
+  resetImageUploadCache();
 
   let ftpClient = null;
 
   try {
-    ftpClient = await createClient();
+    ftpClient = await createFtpClient();
 
     for (let i = 0; i < normalizedTargets.length; i++) {
       const target = normalizedTargets[i];
@@ -377,7 +377,7 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
                 try {
                   ftpClient.close();
                 } catch {}
-                ftpClient = await createClient();
+                ftpClient = await createFtpClient();
               }
             }
           }

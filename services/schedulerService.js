@@ -2,7 +2,7 @@ const { getEnv } = require("../config/env");
 const DailyBatchState = require("../models/DailyBatchState");
 const { getProductMasterSearchTargets, scrapeAllProductMasters } = require("./productMasterScraperService");
 const { generateEpFile } = require("./epService");
-const { uploadEpFile } = require("./ftpService");
+const { uploadEpFileToFtp } = require("./ftpService");
 const DAILY_BATCH_COUNT = Number(getEnv("DAILY_SCRAPE_BATCH_COUNT", "5"));
 const DAILY_BATCH_TIMEZONE = getEnv("DAILY_BATCH_TIMEZONE", "Asia/Seoul");
 
@@ -230,7 +230,7 @@ async function runDailyFinalizeJob(options = {}) {
     }
 
     const normalizedContent = epResult.content.replace(/^\uFEFF/, "");
-    const url = await uploadEpFile(normalizedContent, "ire_naver_ep.txt");
+    const url = await uploadEpFileToFtp(normalizedContent, "ire_naver_ep.txt");
 
     state.finalizedAt = new Date();
     await state.save();

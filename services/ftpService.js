@@ -21,17 +21,17 @@ const uploadedCache = new Set();
 /**
  * FTP 클라이언트 생성 및 접속
  */
-async function createClient() {
-  const client = new ftp.Client(120000);
-  client.ftp.verbose = false;
-  await client.access(FTP_CONFIG);
-  return client;
+async function createFtpClient() {
+  const ftpClient = new ftp.Client(120000);
+  ftpClient.ftp.verbose = false;
+  await ftpClient.access(FTP_CONFIG);
+  return ftpClient;
 }
 
 /**
  * URL에서 파일 확장자 추출
  */
-function getExtension(url) {
+function getImageExtension(url) {
   const pathname = new URL(url).pathname;
   const ext = path.extname(pathname).toLowerCase();
   return ext || ".jpg";
@@ -40,9 +40,9 @@ function getExtension(url) {
 /**
  * URL로부터 고유 파일명 생성
  */
-function generateFilename(url) {
+function buildImageFilename(url) {
   const hash = crypto.createHash("md5").update(url).digest("hex").slice(0, 12);
-  const ext = getExtension(url);
+  const ext = getImageExtension(url);
   return `${hash}${ext}`;
 }
 
@@ -50,10 +50,10 @@ function generateFilename(url) {
  * FTP 이미지 디렉터리 파일 목록 조회 (캐시)
  */
 let existingFilesCache = null;
-async function getExistingFiles(client) {
+async function getExistingImageFilenames(ftpClient) {
   if (existingFilesCache) return existingFilesCache;
 
-  const list = await client.list(IMAGE_DIR);
+  const list = await ftpClient.list(IMAGE_DIR);
   existingFilesCache = new Set(list.map((f) => f.name));
   return existingFilesCache;
 }
@@ -61,10 +61,10 @@ async function getExistingFiles(client) {
 /**
  * 이미지 다운로드 후 FTP 업로드 (클라이언트 재사용)
  */
-async function uploadImageWithClient(client, imageUrl) {
+async function uploadImageToFtp(ftpClient, imageUrl) {
   if (!imageUrl) return "";
 
-  const filename = generateFilename(imageUrl);
+  const filename = buildImageFilename(imageUrl);
   const remotePath = `${IMAGE_DIR}/${filename}`;
   const publicUrl = `${FTP_BASE_URL}/image/${filename}`;
 
@@ -74,7 +74,7 @@ async function uploadImageWithClient(client, imageUrl) {
   }
 
   // 기존 파일 확인
-  const existingFiles = await getExistingFiles(client);
+  const existingFiles = await getExistingImageFilenames(ftpClient);
   if (existingFiles.has(filename)) {
     uploadedCache.add(filename);
     return publicUrl;
@@ -88,7 +88,7 @@ async function uploadImageWithClient(client, imageUrl) {
 
   // 업로드
   const stream = Readable.from(Buffer.from(response.data));
-  await client.uploadFrom(stream, remotePath);
+  await ftpClient.uploadFrom(stream, remotePath);
 
   uploadedCache.add(filename);
   existingFilesCache?.add(filename);
@@ -99,31 +99,31 @@ async function uploadImageWithClient(client, imageUrl) {
 /**
  * EP 파일 FTP 업로드
  */
-async function uploadEpFile(content, filename = "ire_naver_ep.txt") {
+async function uploadEpFileToFtp(content, filename = "ire_naver_ep.txt") {
   const remotePath = `${EP_DIR}/${filename}`;
 
-  const client = await createClient();
+  const ftpClient = await createFtpClient();
   try {
     const normalizedContent = content.replace(/^\uFEFF/, "");
     const stream = Readable.from(Buffer.from(normalizedContent, "utf-8"));
-    await client.uploadFrom(stream, remotePath);
+    await ftpClient.uploadFrom(stream, remotePath);
     return `${FTP_BASE_URL}/ep/${filename}`;
   } finally {
-    client.close();
+    ftpClient.close();
   }
 }
 
 /**
  * 캐시 초기화
  */
-function clearCache() {
+function resetImageUploadCache() {
   uploadedCache.clear();
   existingFilesCache = null;
 }
 
 module.exports = {
-  createClient,
-  uploadImageWithClient,
-  uploadEpFile,
-  clearCache,
+  createFtpClient,
+  uploadImageToFtp,
+  uploadEpFileToFtp,
+  resetImageUploadCache,
 };
