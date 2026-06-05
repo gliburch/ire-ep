@@ -9,19 +9,19 @@ const DAILY_BATCH_TIMEZONE = getEnv("DAILY_BATCH_TIMEZONE", "Asia/Seoul");
 
 let jobRunning = false;
 
-function getDateKey(timeZone = DAILY_BATCH_TIMEZONE, date = new Date()) {
+function getDateKey() {
   const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
+    timeZone: DAILY_BATCH_TIMEZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
 
-  return formatter.format(date);
+  return formatter.format(new Date());
 }
 
-function getDailyWindow(date = new Date()) {
-  const today = new Date(date);
+function getDailyWindow() {
+  const today = new Date();
   const nextYear = new Date(today);
   nextYear.setFullYear(nextYear.getFullYear() + 1);
 
@@ -31,9 +31,9 @@ function getDailyWindow(date = new Date()) {
   };
 }
 
-function getTimeZoneOffsetMs(date, timeZone = DAILY_BATCH_TIMEZONE) {
+function getTimeZoneOffsetMs(date) {
   const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
+    timeZone: DAILY_BATCH_TIMEZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -59,24 +59,18 @@ function getTimeZoneOffsetMs(date, timeZone = DAILY_BATCH_TIMEZONE) {
   return zonedTime - date.getTime();
 }
 
-function getDateKeyRange(dateKey, timeZone = DAILY_BATCH_TIMEZONE) {
+function getDateKeyStart(dateKey) {
   const [year, month, day] = dateKey.split("-").map(Number);
   const startGuess = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
-  const endGuess = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0));
-
-  return {
-    start: new Date(startGuess.getTime() - getTimeZoneOffsetMs(startGuess, timeZone)),
-    end: new Date(endGuess.getTime() - getTimeZoneOffsetMs(endGuess, timeZone)),
-  };
+  return new Date(startGuess.getTime() - getTimeZoneOffsetMs(startGuess));
 }
 
 /**
  * 전체 searchTargets 중 현재 배치가 처리할 구간만 잘라낸다
  */
-function sliceSearchTargetsForBatch(searchTargets, batchIndex, batchCount = DAILY_BATCH_COUNT) {
-  const normalizedBatchCount = Math.max(1, batchCount);
-  const normalizedBatchIndex = Math.max(0, Math.min(batchIndex, normalizedBatchCount - 1));
-  const sliceSize = Math.ceil(searchTargets.length / normalizedBatchCount);
+function sliceSearchTargetsForBatch(searchTargets, batchIndex) {
+  const normalizedBatchIndex = Math.max(0, Math.min(batchIndex, DAILY_BATCH_COUNT - 1));
+  const sliceSize = Math.ceil(searchTargets.length / DAILY_BATCH_COUNT);
   const start = normalizedBatchIndex * sliceSize;
   const end = start + sliceSize;
 
@@ -113,12 +107,8 @@ async function appendBatchState(dateKey, batchKey, scrapeResult) {
   );
 }
 
-async function runDailyScrapeBatch(batchIndex, options = {}) {
-  const {
-    logger = console,
-    batchCount = DAILY_BATCH_COUNT,
-    dateKey = getDateKey(),
-  } = options;
+async function runDailyScrapeBatch(batchIndex, logger = console) {
+  const dateKey = getDateKey();
 
   if (jobRunning) {
     logger.warn?.("Daily scrape batch is already running. Skipping overlapping trigger.");
@@ -130,12 +120,12 @@ async function runDailyScrapeBatch(batchIndex, options = {}) {
   try {
     const { startDate, endDate } = getDailyWindow();
     const searchTargets = await getProductMasterSearchTargets();
-    const { targets, allTargets, sliceSize } = sliceSearchTargetsForBatch(searchTargets, batchIndex, batchCount);
-    const batchKey = `${dateKey}:batch-${batchIndex + 1}-of-${batchCount}`;
+    const { targets, allTargets, sliceSize } = sliceSearchTargetsForBatch(searchTargets, batchIndex);
+    const batchKey = `${dateKey}:batch-${batchIndex + 1}-of-${DAILY_BATCH_COUNT}`;
 
     logger.info?.({
       batchIndex,
-      batchCount,
+      batchCount: DAILY_BATCH_COUNT,
       batchKey,
       targets: targets.length,
       allTargets,
@@ -149,7 +139,7 @@ async function runDailyScrapeBatch(batchIndex, options = {}) {
       onProgress: ({ current, total, target, created, updated, failed }) => {
         logger.info?.({
           batchIndex,
-          batchCount,
+          batchCount: DAILY_BATCH_COUNT,
           current,
           total,
           type: target?.type,
@@ -166,7 +156,7 @@ async function runDailyScrapeBatch(batchIndex, options = {}) {
     return {
       skipped: false,
       batchIndex,
-      batchCount,
+      batchCount: DAILY_BATCH_COUNT,
       batchKey,
       targetCount: targets.length,
       scrapeResult,
@@ -178,11 +168,8 @@ async function runDailyScrapeBatch(batchIndex, options = {}) {
   }
 }
 
-async function runDailyFinalizeJob(options = {}) {
-  const {
-    logger = console,
-    dateKey = getDateKey(),
-  } = options;
+async function runDailyFinalizeJob(logger = console) {
+  const dateKey = getDateKey();
 
   if (jobRunning) {
     logger.warn?.("Daily finalize job is already running. Skipping overlapping trigger.");
@@ -212,11 +199,9 @@ async function runDailyFinalizeJob(options = {}) {
       };
     }
 
-    const { start, end } = getDateKeyRange(dateKey, DAILY_BATCH_TIMEZONE);
+    const updatedFrom = getDateKeyStart(dateKey);
     const epResult = await generateEpFile({
-      recentOnly: false,
-      updatedFrom: start,
-      updatedTo: end,
+      updatedFrom,
     });
 
     if (epResult.count === 0) {
@@ -238,8 +223,7 @@ async function runDailyFinalizeJob(options = {}) {
       dateKey,
       completedBatches: state.completedBatches.length,
       epCount: epResult.count,
-      updatedFrom: start,
-      updatedTo: end,
+      updatedFrom,
       url,
     }, "Daily finalize job completed");
 
@@ -248,8 +232,7 @@ async function runDailyFinalizeJob(options = {}) {
       dateKey,
       completedBatches: state.completedBatches,
       epCount: epResult.count,
-      updatedFrom: start,
-      updatedTo: end,
+      updatedFrom,
       url,
     };
   } finally {

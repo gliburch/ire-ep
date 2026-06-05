@@ -58,23 +58,17 @@ function buildEpFileContent(epDataList) {
   };
 }
 
+/**
+ * ProductMaster에서 EP 파일에 포함할 epData만 수집한다.
+ * - updatedFrom이 있으면 해당 시점 이후로 updated_at 범위를 제한
+ * - updatedFrom이 없으면 전체 epData를 수집
+ */
 async function collectEpData(options = {}) {
-  const {
-    recentOnly = true,
-    updatedFrom = null,
-    updatedTo = null,
-  } = options;
-
+  const { updatedFrom = null } = options;
   const query = {};
 
-  if (updatedFrom || updatedTo) {
-    query.updated_at = {
-      ...(updatedFrom ? { $gte: updatedFrom } : {}),
-      ...(updatedTo ? { $lt: updatedTo } : {}),
-    };
-  } else if (recentOnly) {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    query.updated_at = { $gte: since };
+  if (updatedFrom) {
+    query.updated_at = { $gte: updatedFrom };
   }
 
   const masters = await ProductMaster.find(query).lean();
@@ -92,9 +86,7 @@ async function collectEpData(options = {}) {
 /**
  * EP 파일 생성 단일 진입점
  * @param {object} options
- * @param {boolean} options.recentOnly
  * @param {Date|null} options.updatedFrom
- * @param {Date|null} options.updatedTo
  */
 async function generateEpFile(options = {}) {
   const epDataList = await collectEpData(options);

@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
     const prepared = await prepareCronRequest(req, res);
     if (!prepared) return;
 
-    const result = await runDailyScrapeBatch(1, { logger: console });
+    const result = await runDailyScrapeBatch(1, console);
     return res.status(200).json({ success: !result.skipped, ...result });
   } catch (err) {
     console.error("Cron batch 2 failed:", err);
