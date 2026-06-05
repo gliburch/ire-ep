@@ -1,6 +1,7 @@
 const { getEnv } = require("../config/env");
 const DailyBatchState = require("../models/DailyBatchState");
-const { getProductMasterSearchTargets, scrapeAllProductMasters } = require("./productMasterScraperService");
+const { getProductMasterSearchTargets } = require("./searchTargetService");
+const { scrapeAllProductMasters } = require("./productMasterScraperService");
 const { generateEpFile } = require("./epService");
 const { uploadEpFileToFtp } = require("./ftpService");
 const DAILY_BATCH_COUNT = Number(getEnv("DAILY_SCRAPE_BATCH_COUNT", "5"));
@@ -69,7 +70,7 @@ function getDateKeyRange(dateKey, timeZone = DAILY_BATCH_TIMEZONE) {
   };
 }
 
-function getTargetSlice(searchTargets, batchIndex, batchCount = DAILY_BATCH_COUNT) {
+function sliceSearchTargetsForBatch(searchTargets, batchIndex, batchCount = DAILY_BATCH_COUNT) {
   const normalizedBatchCount = Math.max(1, batchCount);
   const normalizedBatchIndex = Math.max(0, Math.min(batchIndex, normalizedBatchCount - 1));
   const sliceSize = Math.ceil(searchTargets.length / normalizedBatchCount);
@@ -123,7 +124,7 @@ async function runDailyScrapeBatch(batchIndex, options = {}) {
   try {
     const { startDate, endDate } = getDailyWindow();
     const searchTargets = await getProductMasterSearchTargets();
-    const { targets, allTargets, sliceSize } = getTargetSlice(searchTargets, batchIndex, batchCount);
+    const { targets, allTargets, sliceSize } = sliceSearchTargetsForBatch(searchTargets, batchIndex, batchCount);
     const batchKey = `${dateKey}:batch-${batchIndex + 1}-of-${batchCount}`;
 
     logger.info?.({
