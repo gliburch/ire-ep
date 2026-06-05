@@ -11,7 +11,7 @@ const {
   sanitizeTitle,
   sleep,
   walkGnbTree,
-} = require("./productScraperUtils");
+} = require("./scraperUtils");
 const DOMESTIC_PATH_NAME = "국내여행";
 const AREA_TARGET_PATH_NAMES = new Set(["해외여행", "지방출발"]);
 const DOMESTIC_NAVER_CATEGORY = 50007253;

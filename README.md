@@ -73,7 +73,7 @@ api/
   cron/
 services/
   productMasterScraperService.js
-  productScraperUtils.js
+  scraperUtils.js
   epService.js
   ftpService.js
 models/
