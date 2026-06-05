@@ -47,7 +47,7 @@ function generateFilename(url) {
 }
 
 /**
- * FTP에 존재하는 파일 목록 조회 (캐시)
+ * FTP 이미지 디렉터리 파일 목록 조회 (캐시)
  */
 let existingFilesCache = null;
 async function getExistingFiles(client) {
@@ -97,34 +97,6 @@ async function uploadImageWithClient(client, imageUrl) {
 }
 
 /**
- * 이미지 다운로드 후 FTP 업로드 (단일)
- */
-async function uploadImage(imageUrl) {
-  const client = await createClient();
-  try {
-    return await uploadImageWithClient(client, imageUrl);
-  } finally {
-    client.close();
-  }
-}
-
-/**
- * 여러 이미지를 순차 업로드 (하나의 연결 사용)
- */
-async function uploadImagesWithClient(client, imageUrls) {
-  const results = [];
-  for (const url of imageUrls) {
-    try {
-      const result = await uploadImageWithClient(client, url);
-      results.push(result);
-    } catch (err) {
-      results.push("");
-    }
-  }
-  return results;
-}
-
-/**
  * EP 파일 FTP 업로드
  */
 async function uploadEpFile(content, filename = "ire_naver_ep.txt") {
@@ -151,11 +123,7 @@ function clearCache() {
 
 module.exports = {
   createClient,
-  uploadImage,
   uploadImageWithClient,
-  uploadImagesWithClient,
   uploadEpFile,
-  generateFilename,
   clearCache,
-  FTP_BASE_URL,
 };

@@ -5,10 +5,7 @@ module.exports = {
     baseUrl: getEnv("MODETOUR_BASE_URL", "https://onbp-api.modetour.com"),
     endpoints: {
       getGnb: "/Common/GetGnb",
-      productDetail: "/Package/GetProductDetailInfo",
       searchProductMaster: "/Package/SearchProductMaster",
-      searchMinPriceDates: "/Package/SearchMinPriceDates",
-      searchProductDates: "/Package/SearchProductDates",
     },
     headers: {
       ModeWebApiReqHeader: JSON.stringify(getModetourHeader()),

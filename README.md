@@ -1,12 +1,11 @@
 # ire-ep
 
-모두투어 상품 데이터를 수집하고 MongoDB에 저장한 뒤, 네이버 EP TSV 파일을 생성하고 FTP로 업로드하는 Fastify 기반 서비스입니다.
+모두투어 상품 데이터를 수집하고 MongoDB에 저장한 뒤, 네이버 EP TSV 파일을 생성하고 FTP로 업로드하는 크론 중심 서비스입니다.
 
 ## 기능
 
-- 상품 단건/범위/최신 번호 스크래핑
 - 지역별 `ProductMaster` 수집 및 저장
-- DB 또는 API 기준 네이버 EP TSV 생성
+- DB 기준 네이버 EP TSV 생성
 - 상품 이미지 FTP 동기화
 - EP 파일 FTP 업로드
 
@@ -66,49 +65,15 @@ npm run dev
 - `GET /`
 - `GET /health`
 
-### 상품 수집/조회
-
-- `POST /products/scrape?productNo=123`
-- `POST /products/scrape-bulk`
-- `POST /products/scrape-latest?maxRetry=10`
-- `POST /products/scrape-range?startNo=1&endNo=100`
-- `POST /products/search`
-- `POST /products/scrape-master`
-- `GET /products`
-- `GET /products/:productNo`
-- `DELETE /products/:productNo`
-
-### ProductMaster
-
-- `POST /product-masters/scrape`
-- `GET /product-masters`
-- `GET /product-masters/:masterCode`
-
-### EP 생성/업로드
-
-- `GET /ep`
-- `POST /ep/upload`
-- `GET /ep/masters`
-- `POST /ep/masters/upload?uploadImages=true`
-- `GET /ep/db`
-- `POST /ep/db/upload?uploadImages=true`
-- `GET /ep/db/stats`
-- `POST /ep/sync-images?limit=10`
-
-### 운영 스크립트
-
-- `npm run backfill:ep-titles`
-  기존 `Product`, `ProductMaster` 문서의 `epData.title`을 현재 제목 정제 규칙으로 일괄 갱신합니다.
-
 ## 현재 구조
 
 ```text
 index.js
-routes/
-  ep.js
-  products.js
+api/
+  cron/
 services/
-  scraperService.js
+  productMasterScraperService.js
+  productScraperUtils.js
   epService.js
   ftpService.js
 models/
@@ -122,8 +87,8 @@ config/
 ## 운영 메모
 
 - 대량 스크래핑은 요청 한 번에 오래 걸릴 수 있습니다.
-- 민감한 업로드/삭제 API는 운영 환경에서 인증 계층을 두는 것이 안전합니다.
 - 생성된 EP 결과물은 저장소에 커밋하지 않도록 관리하는 것이 좋습니다.
+- 현재 HTTP 서버는 헬스체크(`/`, `/health`)만 제공합니다.
 
 ## ProductMaster 스크래핑 방식
 
@@ -150,8 +115,7 @@ config/
 - Vercel Cron으로 배치를 여러 번 나눠 실행합니다.
 - `vercel.json`의 스케줄은 UTC 기준이며, `23:00 KST = 14:00 UTC`부터 5분 간격으로 스크래핑 배치가 실행됩니다.
 - 스크래핑 배치 5개가 `GetGnb` 대상의 일부씩만 처리하고, 마지막 `finalize` 배치에서만 EP 생성과 FTP 업로드를 수행합니다.
-- 자동 배치는 `GetGnb -> 대상 분할 스크래핑 -> 당일 배치에서 검색된 masterCode 누적 -> finalize에서만 EP 생성 -> FTP 업로드` 순서로 실행됩니다.
+- 자동 배치는 `GetGnb -> 대상 분할 스크래핑 -> DB 갱신 -> finalize에서 당일 갱신분 기준 EP 생성 -> FTP 업로드` 순서로 실행됩니다.
 - 업로드 파일명은 항상 `ire_naver_ep.txt`이며, 기존 파일을 덮어씁니다.
 - 크론 호출 엔드포인트는 [api/cron](</Users/gyeonglin.kim/Projects/ire/ire-ep/api/cron>) 아래의 `daily-scrape-1..5`, `daily-finalize` 입니다.
 - `CRON_SECRET`은 필수이며, 모든 크론 엔드포인트는 `Authorization: Bearer <CRON_SECRET>`로만 실행됩니다.
-- 수동 실행이 필요하면 `POST /ep/daily-run?batchIndex=0` 같은 방식으로 배치 하나를 실행하고, `POST /ep/daily-run?finalize=true`로 최종 EP 업로드를 실행할 수 있습니다.

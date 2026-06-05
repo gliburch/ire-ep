@@ -8,10 +8,6 @@ const dailyBatchStateSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
-    masterCodes: {
-      type: [String],
-      default: [],
-    },
     completedBatches: {
       type: [String],
       default: [],

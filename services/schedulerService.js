@@ -1,7 +1,7 @@
 const { getEnv } = require("../config/env");
 const DailyBatchState = require("../models/DailyBatchState");
-const { getProductMasterSearchTargets, scrapeAllProductMasters } = require("./scraperService");
-const { generateEpFileFromMasterCodes } = require("./epService");
+const { getProductMasterSearchTargets, scrapeAllProductMasters } = require("./productMasterScraperService");
+const { generateEpFile } = require("./epService");
 const { uploadEpFile } = require("./ftpService");
 const DAILY_BATCH_COUNT = Number(getEnv("DAILY_SCRAPE_BATCH_COUNT", "5"));
 const DAILY_BATCH_TIMEZONE = getEnv("DAILY_BATCH_TIMEZONE", "Asia/Seoul");
@@ -27,6 +27,45 @@ function getDailyWindow(date = new Date()) {
   return {
     startDate: today.toISOString().split("T")[0],
     endDate: nextYear.toISOString().split("T")[0],
+  };
+}
+
+function getTimeZoneOffsetMs(date, timeZone = DAILY_BATCH_TIMEZONE) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+  const zonedTime = Date.UTC(
+    Number(values.year),
+    Number(values.month) - 1,
+    Number(values.day),
+    Number(values.hour),
+    Number(values.minute),
+    Number(values.second),
+  );
+  return zonedTime - date.getTime();
+}
+
+function getDateKeyRange(dateKey, timeZone = DAILY_BATCH_TIMEZONE) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const startGuess = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+  const endGuess = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0));
+
+  return {
+    start: new Date(startGuess.getTime() - getTimeZoneOffsetMs(startGuess, timeZone)),
+    end: new Date(endGuess.getTime() - getTimeZoneOffsetMs(endGuess, timeZone)),
   };
 }
 
@@ -56,7 +95,6 @@ async function appendBatchState(dateKey, batchKey, scrapeResult) {
   const update = {
     $addToSet: {
       completedBatches: batchKey,
-      masterCodes: { $each: scrapeResult.masterCodes || [] },
     },
     $inc: {
       "stats.created": scrapeResult.created || 0,
@@ -109,7 +147,6 @@ async function runDailyScrapeBatch(batchIndex, options = {}) {
 
     const scrapeResult = await scrapeAllProductMasters(targets, startDate, endDate, {
       delayMs: 100,
-      collectMasterCodes: true,
       onProgress: ({ current, total, target, created, updated, failed }) => {
         logger.info?.({
           batchIndex,
@@ -135,7 +172,6 @@ async function runDailyScrapeBatch(batchIndex, options = {}) {
       targetCount: targets.length,
       scrapeResult,
       dateKey,
-      accumulatedMasterCodes: state.masterCodes.length,
       completedBatches: state.completedBatches.length,
     };
   } finally {
@@ -159,15 +195,40 @@ async function runDailyFinalizeJob(options = {}) {
   try {
     const state = await DailyBatchState.findOne({ dateKey });
 
-    if (!state || state.masterCodes.length === 0) {
+    if (!state) {
       return {
         skipped: true,
-        reason: "no_master_codes",
+        reason: "no_batch_state",
         dateKey,
       };
     }
 
-    const epResult = await generateEpFileFromMasterCodes(state.masterCodes);
+    if (state.completedBatches.length < DAILY_BATCH_COUNT) {
+      return {
+        skipped: true,
+        reason: "incomplete_batches",
+        dateKey,
+        completedBatches: state.completedBatches.length,
+        expectedBatches: DAILY_BATCH_COUNT,
+      };
+    }
+
+    const { start, end } = getDateKeyRange(dateKey, DAILY_BATCH_TIMEZONE);
+    const epResult = await generateEpFile({
+      recentOnly: false,
+      updatedFrom: start,
+      updatedTo: end,
+    });
+
+    if (epResult.count === 0) {
+      return {
+        skipped: true,
+        reason: "no_recent_product_masters",
+        dateKey,
+        completedBatches: state.completedBatches.length,
+      };
+    }
+
     const normalizedContent = epResult.content.replace(/^\uFEFF/, "");
     const url = await uploadEpFile(normalizedContent, "ire_naver_ep.txt");
 
@@ -176,18 +237,20 @@ async function runDailyFinalizeJob(options = {}) {
 
     logger.info?.({
       dateKey,
-      masterCodeCount: state.masterCodes.length,
       completedBatches: state.completedBatches.length,
       epCount: epResult.count,
+      updatedFrom: start,
+      updatedTo: end,
       url,
     }, "Daily finalize job completed");
 
     return {
       skipped: false,
       dateKey,
-      masterCodeCount: state.masterCodes.length,
       completedBatches: state.completedBatches,
       epCount: epResult.count,
+      updatedFrom: start,
+      updatedTo: end,
       url,
     };
   } finally {

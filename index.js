@@ -1,7 +1,6 @@
 require('dotenv').config();
 const fastify = require('fastify')({ logger: true });
 const mongoose = require('mongoose');
-const routes = require('./routes');
 const { validateEnv } = require('./config/env');
 const { connectDB } = require('./config/db');
 
@@ -42,9 +41,6 @@ fastify.setErrorHandler((error, request, reply) => {
     message: error.message,
   });
 });
-
-// 라우트 등록
-fastify.register(routes);
 
 fastify.get('/', async () => {
   return 'OK';
