@@ -1,6 +1,7 @@
 const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
 const scraperService = require("../services/scraperService");
+const { PRODUCT_MASTER_SCRAPE_MONTHS } = require("../config/env");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -13,7 +14,7 @@ async function productsRoutes(fastify) {
       return reply.code(400).send({ error: "productNo is required" });
     }
 
-    const product = await scraperService.scrapeAndSave(productNo);
+    const { product } = await scraperService.scrapeProduct(productNo);
     return { success: true, product };
   });
 
@@ -29,7 +30,7 @@ async function productsRoutes(fastify) {
 
     for (const productNo of productNos) {
       try {
-        const product = await scraperService.scrapeAndSave(productNo);
+        const { product } = await scraperService.scrapeProduct(productNo);
         results.success.push({ productNo, id: product._id });
       } catch (err) {
         results.failed.push({ productNo, error: err.message });
@@ -56,7 +57,7 @@ async function productsRoutes(fastify) {
 
     while (consecutiveFailures < maxRetry) {
       try {
-        await scraperService.scrapeAndSave(currentNo.toString());
+        await scraperService.scrapeProduct(currentNo.toString());
         results.success.push(currentNo);
         consecutiveFailures = 0;
       } catch (err) {
@@ -103,7 +104,7 @@ async function productsRoutes(fastify) {
 
     for (let currentNo = start; currentNo <= end; currentNo++) {
       try {
-        await scraperService.scrapeAndSave(currentNo.toString());
+        await scraperService.scrapeProduct(currentNo.toString());
         results.success.push(currentNo);
       } catch (err) {
         if (err.response?.status === 404 || err.message.includes("Invalid")) {
@@ -179,17 +180,16 @@ async function productsRoutes(fastify) {
   });
 
   // 전체 ProductMaster 스크래핑 및 DB 저장
-  // 오늘부터 1년 후까지 GetGnb 기준 지역/테마 조회
   fastify.post("/product-masters/scrape", async (request, reply) => {
     const today = new Date();
-    const nextYear = new Date(today);
-    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    const endDateObj = new Date(today);
+    endDateObj.setMonth(endDateObj.getMonth() + Number(PRODUCT_MASTER_SCRAPE_MONTHS));
 
     const startDate = today.toISOString().split("T")[0];
-    const endDate = nextYear.toISOString().split("T")[0];
+    const endDate = endDateObj.toISOString().split("T")[0];
     const targets = await scraperService.getProductMasterSearchTargets();
 
-    const results = await scraperService.scrapeAllProductMasters(
+    const results = await scraperService.scrapeProductMasters(
       targets,
       startDate,
       endDate,
@@ -223,10 +223,10 @@ async function productsRoutes(fastify) {
 
     const [masters, total] = await Promise.all([
       ProductMaster.find()
-        .sort({ updated_at: -1 })
+        .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .select("masterCode masterCodeNo epData.title epData.price_pc updated_at")
+        .select("masterCode masterCodeNo epData.title epData.price_pc updatedAt")
         .lean(),
       ProductMaster.countDocuments(),
     ]);
@@ -275,7 +275,7 @@ async function productsRoutes(fastify) {
 
     const [products, total] = await Promise.all([
       Product.find()
-        .sort({ created_at: -1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
         .lean(),

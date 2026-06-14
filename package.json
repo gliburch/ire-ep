@@ -4,9 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node index.js",
+    "start": "NODE_ENV=production node index.js",
+    "dev": "nodemon index.js",
     "backfill:ep-titles": "node scripts/backfillEpTitles.js",
+    "productMasters:scrape": "node scripts/productMasters.js",
+    "product:scrape": "node scripts/products.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -27,5 +29,8 @@
     "dotenv": "^17.4.2",
     "fastify": "^5.8.5",
     "mongoose": "^9.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

@@ -1,10 +1,10 @@
-const { getEnv } = require("../config/env");
-const DailyBatchState = require("../models/DailyBatchState");
-const { getProductMasterSearchTargets, scrapeAllProductMasters } = require("./scraperService");
+const { DAILY_SCRAPE_BATCH_COUNT, DAILY_BATCH_TIMEZONE } = require("../config/env");
+const BatchJob = require("../models/BatchJob");
+const { getProductMasterSearchTargets, scrapeProductMasters } = require("./scraperService");
 const { generateEpFileFromMasterCodes } = require("./epService");
 const { uploadEpFile } = require("./ftpService");
-const DAILY_BATCH_COUNT = Number(getEnv("DAILY_SCRAPE_BATCH_COUNT", "5"));
-const DAILY_BATCH_TIMEZONE = getEnv("DAILY_BATCH_TIMEZONE", "Asia/Seoul");
+const DAILY_BATCH_COUNT = Number(DAILY_SCRAPE_BATCH_COUNT);
+
 
 let jobRunning = false;
 
@@ -65,7 +65,7 @@ async function appendBatchState(dateKey, batchKey, scrapeResult) {
     },
   };
 
-  return DailyBatchState.findOneAndUpdate(
+  return BatchJob.findOneAndUpdate(
     { dateKey },
     update,
     {
@@ -107,7 +107,7 @@ async function runDailyScrapeBatch(batchIndex, options = {}) {
       endDate,
     }, "Starting daily scrape batch");
 
-    const scrapeResult = await scrapeAllProductMasters(targets, startDate, endDate, {
+    const scrapeResult = await scrapeProductMasters(targets, startDate, endDate, {
       delayMs: 100,
       collectMasterCodes: true,
       onProgress: ({ current, total, target, created, updated, failed }) => {
@@ -157,7 +157,7 @@ async function runDailyFinalizeJob(options = {}) {
   jobRunning = true;
 
   try {
-    const state = await DailyBatchState.findOne({ dateKey });
+    const state = await BatchJob.findOne({ dateKey });
 
     if (!state || state.masterCodes.length === 0) {
       return {

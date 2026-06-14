@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const dailyBatchStateSchema = new mongoose.Schema(
+const batchJobSchema = new mongoose.Schema(
   {
     dateKey: {
       type: String,
@@ -27,9 +27,9 @@ const dailyBatchStateSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+    timestamps: true,
     versionKey: false,
   },
 );
 
-module.exports = mongoose.model("DailyBatchState", dailyBatchStateSchema);
+module.exports = mongoose.model("BatchJob", batchJobSchema, "batchJobs");

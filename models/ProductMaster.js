@@ -20,9 +20,9 @@ const productMasterSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+    timestamps: true,
     versionKey: false,
   }
 );
 
-module.exports = mongoose.model("ProductMaster", productMasterSchema);
+module.exports = mongoose.model("ProductMaster", productMasterSchema, "productMasters");

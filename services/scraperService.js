@@ -1,5 +1,5 @@
 const axios = require("axios");
-const apiConfig = require("../config/apiConfig");
+const apiConfig = require("../config/modetour");
 const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
 const {
@@ -390,10 +390,41 @@ function transformToEpData(rawData) {
 /**
  * 상품 스크래핑 후 DB 저장 (upsert)
  */
-async function scrapeAndSave(productNo) {
+async function scrapeProduct(productNo) {
   const apiResponse = await fetchProductFromApi(productNo);
   const rawData = apiResponse.result || {};
   const epData = transformToEpData(apiResponse);
+
+  // FTP 이미지 업로드 로직
+  clearCache();
+  let ftpClient = null;
+  try {
+    // FTP 접속 타임아웃 5초 설정
+    ftpClient = await Promise.race([
+      createClient(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("FTP connection timeout")), 5000)
+      )
+    ]);
+
+    if (ftpClient) {
+      const uploadedEpData = await uploadEpImagesForNewMaster(epData, ftpClient);
+      if (uploadedEpData) {
+        epData.image_link = uploadedEpData.image_link;
+        epData.add_image_link = uploadedEpData.add_image_link;
+      }
+    }
+  } catch (err) {
+    console.warn(`[WARN] FTP Image upload skipped for productNo=${productNo}: ${err.message}`);
+  } finally {
+    if (ftpClient) {
+      try {
+        ftpClient.close();
+      } catch (e) {}
+    }
+  }
+
+  const existing = await Product.exists({ productNo: Number(productNo) });
 
   const product = await Product.findOneAndUpdate(
     { productNo: Number(productNo) },
@@ -409,7 +440,7 @@ async function scrapeAndSave(productNo) {
     { upsert: true, returnDocument: "after" },
   );
 
-  return product;
+  return { product, status: existing ? "updated" : "created" };
 }
 
 /**
@@ -708,9 +739,10 @@ async function saveProductMaster(master, target, options = {}) {
 /**
  * 전체 ProductMaster 스크래핑 및 DB 저장
  */
-async function scrapeAllProductMasters(targets, startDate, endDate, options = {}) {
+async function scrapeProductMasters(targets, startDate, endDate, options = {}) {
   const {
     onProgress,
+    onItem,
     delayMs = 100,
     collectMasterCodes = false,
   } = options;
@@ -811,8 +843,16 @@ async function scrapeAllProductMasters(targets, startDate, endDate, options = {}
               } else if (saveResult.status === "updated") {
                 results.updated++;
               }
+
+              if (onItem) {
+                onItem({ master, target, status: saveResult.status });
+              }
             } catch (err) {
               results.failed++;
+              
+              if (onItem) {
+                onItem({ master, target, status: "failed", error: err });
+              }
 
               if (err.message.includes("Timeout") || err.message.includes("closed")) {
                 try {
@@ -866,11 +906,11 @@ module.exports = {
   sanitizeTitle,
   transformToEpData,
   transformProductMasterToEpData,
-  scrapeAndSave,
+  scrapeProduct,
   searchProductMaster,
   searchMinPriceDates,
   searchProductDates,
   fetchAllProductDetails,
   saveProductMaster,
-  scrapeAllProductMasters,
+  scrapeProductMasters,
 };

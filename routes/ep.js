@@ -1,6 +1,7 @@
 const { generateEpFile, generateEpFileFromProductMasters, generateEpFileFromDb, syncProductImages, syncProductMasterImages } = require("../services/epService");
 const { uploadEpFile } = require("../services/ftpService");
 const { getProductMasterSearchTargets } = require("../services/scraperService");
+const { PRODUCT_MASTER_SCRAPE_MONTHS } = require("../config/env");
 const { DAILY_BATCH_COUNT, runDailyScrapeBatch, runDailyFinalizeJob } = require("../services/schedulerService");
 const ProductMaster = require("../models/ProductMaster");
 
@@ -22,14 +23,13 @@ async function epRoutes(fastify) {
   });
 
   // ProductMaster 기반 EP 파일 생성
-  // 오늘부터 1년 후까지 GetGnb 기준 지역/테마 조회
   fastify.get("/ep/masters", async (request, reply) => {
     const today = new Date();
-    const nextYear = new Date(today);
-    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    const endDateObj = new Date(today);
+    endDateObj.setMonth(endDateObj.getMonth() + Number(PRODUCT_MASTER_SCRAPE_MONTHS));
 
     const startDate = today.toISOString().split("T")[0];
-    const endDate = nextYear.toISOString().split("T")[0];
+    const endDate = endDateObj.toISOString().split("T")[0];
     const targets = await getProductMasterSearchTargets();
     const result = await generateEpFileFromProductMasters(targets, startDate, endDate);
 
