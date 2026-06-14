@@ -25,4 +25,4 @@ const productMasterSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("ProductMaster", productMasterSchema, "productMasters");
+module.exports = mongoose.model("ProductMaster", productMasterSchema, "productmasters");

@@ -358,7 +358,11 @@ function transformToEpData(rawData) {
   return {
     // 필수: id, title, price_pc, link, image_link, category_name1, shipping
     id: sanitizeId(rawId),
-    title: sanitizeTitle(data.productName || ""),
+    title: sanitizeTitle(
+      data.departureDate
+        ? `${data.productName || ""} ${data.departureDate} 출발`
+        : data.productName || ""
+    ),
     price_pc: data.benefitPriceInfo?.price || 1,
     benefit_price: data.benefitPriceInfo?.discountPrice || 1,
     normal_price: data.productPriceAdultTotalAmount || 1,
