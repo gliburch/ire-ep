@@ -1,4 +1,5 @@
 const ProductMaster = require("../models/ProductMaster");
+const Product = require("../models/Product");
 
 /**
  * TSV용 제어문자 제거
@@ -84,7 +85,7 @@ async function collectEpData(options = {}) {
 }
 
 /**
- * EP 파일 생성 단일 진입점
+ * ProductMaster 기반 EP 파일 생성 단일 진입점
  * @param {object} options
  * @param {Date|null} options.updatedFrom
  */
@@ -93,6 +94,46 @@ async function generateEpFile(options = {}) {
   return buildEpFileContent(epDataList);
 }
 
+/**
+ * Product(출발일 단위)에서 EP 파일에 포함할 epData를 수집한다.
+ * - futureOnly가 true이면 오늘 이후 출발 상품만 포함
+ */
+async function collectProductEpData(options = {}) {
+  const { futureOnly = true } = options;
+  const query = { epData: { $exists: true, $ne: null } };
+
+  if (futureOnly) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    query.departureDate = { $gte: today };
+  }
+
+  const products = await Product.find(query).lean();
+
+  const epDataList = [];
+
+  for (const product of products) {
+    if (!product.epData) continue;
+    epDataList.push(product.epData);
+  }
+
+  return epDataList;
+}
+
+/**
+ * Product 기반 EP 파일 생성 단일 진입점
+ * @param {object} options
+ * @param {boolean} options.futureOnly
+ */
+async function generateProductEpFile(options = {}) {
+  const epDataList = await collectProductEpData(options);
+  return buildEpFileContent(epDataList);
+}
+
 module.exports = {
+  EP_HEADERS,
+  sanitizeForTsv,
+  buildEpFileContent,
   generateEpFile,
+  generateProductEpFile,
 };

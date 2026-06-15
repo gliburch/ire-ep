@@ -8,9 +8,6 @@ const productSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
-    rawData: {
-      type: mongoose.Schema.Types.Mixed,
-    },
     epData: {
       type: mongoose.Schema.Types.Mixed,
     },

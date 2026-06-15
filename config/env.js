@@ -1,44 +1,52 @@
-const requiredEnvVars = [
-  "MONGODB_URI",
-  "MONGODB_DB",
-  "FTP_HOST",
-  "FTP_USER",
-  "FTP_PASSWORD",
-  "FTP_BASE_URL",
-  "MODETOUR_API_KEY",
-  "MODETOUR_WEBSITE_NO",
-  "MODETOUR_COMPANY_NO",
-];
+const dotenv = require("dotenv");
 
-function getEnv(name, fallback = "") {
-  const value = process.env[name];
-  if (value === undefined || value === null || value === "") {
-    return fallback;
-  }
-  return value;
-}
+// 로컬에서는 .env.local, 프로덕션(NODE_ENV=production)에서는 .env를 사용한다.
+// Vercel 등 환경변수가 주입되는 환경에서는 파일이 없어도 process.env 값이 그대로 쓰인다.
+dotenv.config({
+  path: process.env.NODE_ENV === "production" ? ".env" : ".env.local",
+  quiet: true,
+});
 
-function validateEnv() {
-  const missing = requiredEnvVars.filter((name) => !getEnv(name));
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}`,
-    );
-  }
-}
-
-function getModetourHeader() {
-  return {
-    WebSiteNo: Number(getEnv("MODETOUR_WEBSITE_NO")),
-    CompanyNo: Number(getEnv("MODETOUR_COMPANY_NO")),
-    DeviceType: getEnv("MODETOUR_DEVICE_TYPE", "DVTPC"),
-    ApiKey: getEnv("MODETOUR_API_KEY"),
-  };
-}
+const {
+  MONGODB_URI,
+  MONGODB_DB,
+  PORT,
+  FTP_HOST,
+  FTP_USER,
+  FTP_PASSWORD,
+  FTP_BASE_URL,
+  MODETOUR_API_KEY,
+  MODETOUR_WEBSITE_NO,
+  MODETOUR_COMPANY_NO,
+  MODETOUR_DEVICE_TYPE,
+  CRON_SECRET,
+  DAILY_SCRAPE_BATCH_COUNT,
+  DAILY_BATCH_TIMEZONE,
+  PRODUCT_MASTER_SCRAPE_MONTHS,
+} = process.env;
 
 module.exports = {
-  getEnv,
-  validateEnv,
-  getModetourHeader,
+  MONGODB_URI,
+  MONGODB_DB,
+  PORT,
+  FTP_HOST,
+  FTP_USER,
+  FTP_PASSWORD,
+  FTP_BASE_URL,
+  MODETOUR_API_KEY,
+  MODETOUR_WEBSITE_NO,
+  MODETOUR_COMPANY_NO,
+  MODETOUR_DEVICE_TYPE,
+  CRON_SECRET,
+  DAILY_SCRAPE_BATCH_COUNT,
+  DAILY_BATCH_TIMEZONE,
+  PRODUCT_MASTER_SCRAPE_MONTHS,
 };
+
+const missing = Object.keys(module.exports).filter((key) => !module.exports[key]);
+
+if (missing.length > 0) {
+  throw new Error(
+    `Missing required environment variables: ${missing.join(", ")}`,
+  );
+}

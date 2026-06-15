@@ -1,11 +1,10 @@
-const { getEnv } = require("../config/env");
+const { DAILY_SCRAPE_BATCH_COUNT, DAILY_BATCH_TIMEZONE } = require("../config/env");
 const DailyBatchState = require("../models/DailyBatchState");
 const { getProductMasterSearchTargets } = require("./searchTargetService");
 const { scrapeAllProductMasters } = require("./productMasterScraperService");
 const { generateEpFile } = require("./epService");
 const { uploadEpFileToFtp } = require("./ftpService");
-const DAILY_BATCH_COUNT = Number(getEnv("DAILY_SCRAPE_BATCH_COUNT", "5"));
-const DAILY_BATCH_TIMEZONE = getEnv("DAILY_BATCH_TIMEZONE", "Asia/Seoul");
+const DAILY_BATCH_COUNT = Number(DAILY_SCRAPE_BATCH_COUNT);
 
 let jobRunning = false;
 

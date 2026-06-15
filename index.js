@@ -1,7 +1,6 @@
-require('dotenv').config();
+require('./config/env');
 const fastify = require('fastify')({ logger: true });
 const mongoose = require('mongoose');
-const { validateEnv } = require('./config/env');
 const { connectDB } = require('./config/db');
 
 const PORT = process.env.PORT || 3000;
@@ -56,7 +55,6 @@ fastify.get('/health', async () => {
 });
 
 async function start() {
-  validateEnv();
   try {
     await connectDB(fastify.log);
   } catch (err) {

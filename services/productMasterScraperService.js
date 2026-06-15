@@ -180,6 +180,7 @@ async function saveProductMaster(productMaster, searchTarget, options = {}) {
 async function scrapeAllProductMasters(searchTargets, startDate, endDate, options = {}) {
   const {
     onProgress,
+    onItem,
     delayMs = 100,
   } = options;
   const results = { created: 0, updated: 0, failed: 0 };
@@ -231,6 +232,10 @@ async function scrapeAllProductMasters(searchTargets, startDate, endDate, option
               } else if (saveResult.status === "updated") {
                 results.updated++;
               }
+
+              if (onItem) {
+                onItem({ productMaster, searchTarget, status: saveResult.status });
+              }
             } catch (err) {
               results.failed++;
               console.error(
@@ -242,6 +247,10 @@ async function scrapeAllProductMasters(searchTargets, startDate, endDate, option
                   message: err.message,
                 },
               );
+
+              if (onItem) {
+                onItem({ productMaster, searchTarget, status: "failed", error: err });
+              }
 
               if (err.message.includes("Timeout") || err.message.includes("closed")) {
                 try {

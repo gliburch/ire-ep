@@ -1,121 +1,35 @@
 # ire-ep
 
-모두투어 상품 데이터를 수집하고 MongoDB에 저장한 뒤, 네이버 EP TSV 파일을 생성하고 FTP로 업로드하는 크론 중심 서비스입니다.
+모두투어 상품을 수집해 MongoDB에 저장하고, 네이버 EP TSV를 생성해 FTP로 업로드하는 서비스.
 
-## 기능
+- **ProductMaster**: 카탈로그(마스터) 단위. 지역/테마 검색으로 수집하며 데일리 크론 배치 대상.
+- **Product**: 출발일 단위 개별 상품. `productNo`로 상세를 수집하며 로컬 스크립트로 운영.
 
-- 지역별 `ProductMaster` 수집 및 저장
-- DB 기준 네이버 EP TSV 생성
-- 상품 이미지 FTP 동기화
-- EP 파일 FTP 업로드
+## 환경변수
 
-## 기술 스택
+`config/env.js`가 단일 진입점이며 `NODE_ENV`에 따라 파일을 읽는다.
 
-- Node.js
-- Fastify
-- Mongoose
-- Axios
-- basic-ftp
-
-## 실행 방법
-
-1. 의존성 설치
+- 로컬(기본): `.env.local`
+- 프로덕션(`NODE_ENV=production`) 및 Vercel 주입: `.env` / 주입값
 
 ```bash
-npm install
+cp .env.example .env.local   # 값 채우기
+npm run dev                  # 헬스체크 서버 (GET /, /health)
 ```
 
-2. 환경변수 준비
+## 로컬 스크립트
 
-```bash
-cp .env.example .env
-```
-
-`.env`에 MongoDB, FTP, 모두투어 API 값을 채워주세요.
-
-3. 서버 실행
-
-```bash
-npm run dev
-```
-
-기본 포트는 `3000`입니다.
-
-## 주요 환경변수
-
-- `MONGODB_URI`
-- `MONGODB_DB`
-- `PORT`
-- `FTP_HOST`
-- `FTP_USER`
-- `FTP_PASSWORD`
-- `FTP_BASE_URL`
-- `MODETOUR_API_KEY`
-- `MODETOUR_WEBSITE_NO`
-- `MODETOUR_COMPANY_NO`
-- `MODETOUR_DEVICE_TYPE`
-- `CRON_SECRET`
-- `DAILY_SCRAPE_BATCH_COUNT`
-- `DAILY_BATCH_TIMEZONE`
-
-## 주요 엔드포인트
-
-### 헬스체크
-
-- `GET /`
-- `GET /health`
-
-## 현재 구조
-
-```text
-index.js
-api/
-  cron/
-services/
-  productMasterScraperService.js
-  scraperUtils.js
-  epService.js
-  ftpService.js
-models/
-  Product.js
-  ProductMaster.js
-config/
-  apiConfig.js
-  env.js
-```
-
-## 운영 메모
-
-- 대량 스크래핑은 요청 한 번에 오래 걸릴 수 있습니다.
-- 생성된 EP 결과물은 저장소에 커밋하지 않도록 관리하는 것이 좋습니다.
-- 현재 HTTP 서버는 헬스체크(`/`, `/health`)만 제공합니다.
-
-## ProductMaster 스크래핑 방식
-
-1. `GetGnb` API를 호출해서 최신 메뉴 트리를 받아옵니다.
-2. `GetGnb` 응답에서 스크래핑 대상 번호를 추출합니다.
-3. 지역 대상은 `해외여행`, `지방출발` 경로 아래의 중간 depth `areaKeywordNo`만 사용합니다.
-4. 테마 대상은 `국내여행` 경로 아래의 `themeNo`를 사용합니다.
-5. 추출한 값을 `areaTargets`, `themeTargets`로 정리합니다.
-6. 스크래핑 기간은 실행일 기준 `오늘 ~ 1년 후`로 설정합니다.
-7. `areaTargets`를 순회하면서 `SearchProductMaster`를 `areaNo` 기준으로 호출합니다.
-8. `themeTargets`를 순회하면서 `SearchProductMaster`를 `themeNo` 기준으로 호출합니다.
-9. 각 대상은 페이지네이션(`pageNo`, `pageSize=100`)으로 마지막 페이지까지 조회합니다.
-10. 조회된 `productMaster`는 `masterCode` 기준으로 중복 제거합니다.
-11. 각 `productMaster`를 네이버 EP용 `epData`로 변환합니다.
-12. 국내 상품은 `여가/생활편의 > 국내여행 > 국내패키지/기타`, `naver_category=50007253`으로 매핑합니다.
-13. 해외 상품은 `여가/생활편의 > 해외여행 > 해외패키지/기타`, `naver_category=50007257`로 매핑합니다.
-14. 기존 `masterCode`가 이미 DB에 있으면 기존 값은 유지하고 `updated_at`만 갱신합니다.
-15. 신규 `masterCode`는 이미지를 Cafe24 FTP에 업로드한 뒤 `epData`에 FTP URL을 반영합니다.
-16. 신규 상품만 `ProductMaster`로 생성합니다.
-17. 전체 순회가 끝나면 `created`, `updated`, `failed` 집계를 반환합니다.
+| 명령어 | 설명 |
+| --- | --- |
+| `npm run productMasters:scrape` | GNB 대상 전체 ProductMaster 수집/저장 |
+| `npm run product:scrape -- <productNo>` | 단일 Product 수집/저장 |
+| `npm run product:scrape-range -- <startNo> [count]` | productNo 범위 순차 수집 (기본 1000개) |
+| `npm run generate-ep:productMasters` | DB의 ProductMaster 기준 EP를 `dist/`에 생성 |
+| `npm run generate-ep:products` | 오늘 이후 출발 Product 기준 EP를 `dist/`에 생성 |
+| `npm run backfill:ep-titles` | 저장된 `epData.title`을 현재 정제 규칙으로 재계산 |
 
 ## 데일리 자동 배치
 
-- Vercel Cron으로 배치를 여러 번 나눠 실행합니다.
-- `vercel.json`의 스케줄은 UTC 기준이며, `23:00 KST = 14:00 UTC`부터 5분 간격으로 스크래핑 배치가 실행됩니다.
-- 스크래핑 배치 5개가 `GetGnb` 대상의 일부씩만 처리하고, 마지막 `finalize` 배치에서만 EP 생성과 FTP 업로드를 수행합니다.
-- 자동 배치는 `GetGnb -> 대상 분할 스크래핑 -> DB 갱신 -> finalize에서 당일 갱신분 기준 EP 생성 -> FTP 업로드` 순서로 실행됩니다.
-- 업로드 파일명은 항상 `ire_naver_ep.txt`이며, 기존 파일을 덮어씁니다.
-- 크론 호출 엔드포인트는 [api/cron](</Users/gyeonglin.kim/Projects/ire/ire-ep/api/cron>) 아래의 `daily-scrape-1..5`, `daily-finalize` 입니다.
-- `CRON_SECRET`은 필수이며, 모든 크론 엔드포인트는 `Authorization: Bearer <CRON_SECRET>`로만 실행됩니다.
+- Vercel Cron으로 ProductMaster 스크래핑을 5개 배치로 나눠 실행하고, `finalize`에서만 당일 갱신분 EP 생성·FTP 업로드.
+- `vercel.json` 스케줄은 UTC 기준(`23:00 KST = 14:00 UTC`부터 5분 간격).
+- 엔드포인트는 `api/cron`의 `daily-scrape-1..5`, `daily-finalize`. 모두 `Authorization: Bearer <CRON_SECRET>` 필요.
