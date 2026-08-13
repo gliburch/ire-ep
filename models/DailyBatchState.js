@@ -28,4 +28,4 @@ const dailyBatchStateSchema = new mongoose.Schema(
   },
 );
 
-module.exports = mongoose.model("DailyBatchState", dailyBatchStateSchema);
+module.exports = mongoose.model("DailyBatchState", dailyBatchStateSchema, "dailyBatchStates");
