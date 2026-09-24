@@ -2,7 +2,10 @@ const axios = require("axios");
 const apiConfig = require("../config/apiConfig");
 const Product = require("../models/Product");
 const {
-  createFtpClient,
+  connectFtpWithRetry,
+  checkFtpWritable,
+  isFtpConnectionError,
+  isFtpQuotaError,
   uploadImageToFtp,
   resetImageUploadCache,
 } = require("./ftpService");
@@ -13,6 +16,39 @@ const {
 } = require("./scraperUtils");
 
 const OVERSEAS_NAVER_CATEGORY = 50007257;
+
+// 연속으로 이만큼 FTP 관련 실패가 나면 원인이 일시적 끊김이 아니라고 보고 중단한다.
+const MAX_CONSECUTIVE_FTP_FAILURES = 5;
+
+// 판매 종료/취소 상품 판정에 쓰는 플래그. 하나라도 "Y"면 수집 대상이 아니다.
+const SOLDOUT_FLAGS = ["salesEnd", "salesEndTravelPlanner", "cancel"];
+
+/**
+ * 판매 종료/취소로 "Y"가 선 플래그 목록을 돌려준다.
+ * - 빈 배열이면 판매 중인 상품
+ */
+function getSoldoutFlags(result) {
+  const data = result || {};
+  return SOLDOUT_FLAGS.filter((flag) => data[flag] === "Y");
+}
+
+/**
+ * 출발일이 오늘보다 이전인지 판단한다.
+ * - 오늘 출발은 아직 유효하므로 자정 기준으로 비교한다
+ * - departureDate가 없거나 형식이 깨진 값은 걸러내지 않는다(판단 불가)
+ */
+function isDeparted(result) {
+  const raw = (result || {}).departureDate;
+  if (!raw) return false;
+
+  const departureDate = new Date(raw);
+  if (Number.isNaN(departureDate.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return departureDate < today;
+}
 
 /**
  * 모두투어 GetProductDetailInfo API에서 단일 상품(출발일 단위) 상세 조회
@@ -146,20 +182,27 @@ async function scrapeProduct(productNo, options = {}) {
   let client = ftpClient;
 
   try {
+    // 이미지가 FTP에 올라가지 않은 채 원본 URL로 저장되면 EP가 오염되므로,
+    // FTP를 확보하지 못하면 수집을 진행하지 않는다.
     if (!client) {
       resetImageUploadCache();
-      try {
-        client = localClient = await createFtpClient();
-      } catch (err) {
-        console.warn(
-          `[WARN] FTP 연결 실패, 이미지 업로드 없이 진행합니다 (productNo=${productNo}): ${err.message}`,
-        );
-        client = null;
-      }
+      client = localClient = await connectFtpWithRetry(` (productNo=${productNo})`);
     }
 
     const apiResponse = await fetchProductFromApi(productNo);
     const rawData = apiResponse.result || {};
+
+    // 판매 종료/취소 상품은 EP 대상이 아니므로 이미지 업로드 전에 걸러낸다.
+    const soldoutFlags = getSoldoutFlags(rawData);
+    if (soldoutFlags.length > 0) {
+      return { product: null, status: "soldout", soldoutFlags };
+    }
+
+    // 이미 출발한 상품도 EP 대상이 아니다. 판정 시점은 soldout과 같다.
+    if (isDeparted(rawData)) {
+      return { product: null, status: "departed", departureDate: rawData.departureDate };
+    }
+
     const epData = await buildProductEpData(rawData, { ftpClient: client });
 
     const existing = await Product.exists({ productNo: Number(productNo) });
@@ -187,8 +230,21 @@ async function scrapeProduct(productNo, options = {}) {
 }
 
 /**
+ * 배치 중단 에러를 만든다.
+ * - 어디까지 진행했는지 호출측이 알 수 있도록 집계와 중단 지점을 함께 싣는다
+ */
+function buildAbortError(message, { results, productNo, current }) {
+  const error = new Error(message);
+  error.aborted = true;
+  error.results = results;
+  error.lastProductNo = productNo;
+  error.lastIndex = current;
+  return error;
+}
+
+/**
  * 여러 상품(productNo 목록)을 하나의 FTP 연결로 순차 스크래핑
- * - 404/Invalid 응답은 skipped로 분류
+ * - 404/Invalid 응답은 skipped, 판매 종료/취소는 soldout, 출발일 경과는 departed로 분류
  * - created/updated/skipped/failed 집계를 반환
  */
 async function scrapeProducts(productNos, options = {}) {
@@ -197,38 +253,43 @@ async function scrapeProducts(productNos, options = {}) {
     onItem,
     delayMs = 100,
   } = options;
-  const results = { created: 0, updated: 0, skipped: 0, failed: 0 };
+  const results = { created: 0, updated: 0, soldout: 0, departed: 0, skipped: 0, failed: 0 };
   const total = productNos.length;
 
   resetImageUploadCache();
 
-  let ftpClient = null;
+  // 배치 시작 전에 FTP를 확보하지 못하면 아예 시작하지 않는다.
+  // (연결 없이 진행하면 상품마다 재연결을 시도해 차단을 더 키우고,
+  //  이미지가 원본 URL로 저장돼 EP 데이터가 오염된다)
+  let ftpClient = await connectFtpWithRetry();
+  let consecutiveFtpFailures = 0;
 
   try {
-    try {
-      ftpClient = await createFtpClient();
-    } catch (err) {
-      console.warn(
-        `[WARN] FTP 연결 실패, 이미지 업로드 없이 진행합니다: ${err.message}`,
-      );
-      ftpClient = null;
-    }
-
     for (let i = 0; i < total; i++) {
       const productNo = productNos[i];
       const current = i + 1;
 
       try {
-        const { product, status } = await scrapeProduct(productNo, { ftpClient });
+        const { product, status, soldoutFlags, departureDate } = await scrapeProduct(productNo, { ftpClient });
+
+        // departed/soldout은 이미지 업로드를 거치지 않으므로 FTP가 정상이라는 근거가 못 된다.
+        // 실제로 업로드를 통과한 경우에만 연속 실패를 초기화한다.
+        if (status === "created" || status === "updated") {
+          consecutiveFtpFailures = 0;
+        }
 
         if (status === "created") {
           results.created++;
+        } else if (status === "soldout") {
+          results.soldout++;
+        } else if (status === "departed") {
+          results.departed++;
         } else {
           results.updated++;
         }
 
         if (onItem) {
-          onItem({ current, total, productNo, status, product });
+          onItem({ current, total, productNo, status, product, soldoutFlags, departureDate });
         }
       } catch (err) {
         const isInvalid =
@@ -236,24 +297,48 @@ async function scrapeProducts(productNos, options = {}) {
 
         if (isInvalid) {
           results.skipped++;
-          if (onItem) onItem({ current, total, productNo, status: "skipped" });
+          if (onItem) onItem({ current, total, productNo, status: "skipped", error: err });
         } else {
           results.failed++;
           if (onItem) onItem({ current, total, productNo, status: "failed", error: err });
         }
 
-        // FTP 연결 끊김 시 재연결
-        if (
-          ftpClient &&
-          (err.message?.includes("Timeout") || err.message?.includes("closed"))
-        ) {
+        // 용량 초과는 재연결해도 절대 풀리지 않는다. 남은 상품을 전부 실패로
+        // 소진하지 않도록 즉시 중단한다.
+        if (isFtpQuotaError(err)) {
+          throw buildAbortError(
+            `FTP 저장 용량이 부족합니다 (productNo=${productNo}): ${err.message}`,
+            { results, productNo, current },
+          );
+        }
+
+        if (isFtpConnectionError(err)) {
+          consecutiveFtpFailures++;
+
+          // 재연결에 성공하는데도 실패가 이어지면 연결 문제가 아니다(용량 부족 등).
+          // 같은 실패를 범위 끝까지 반복하지 않도록 중단한다.
+          if (consecutiveFtpFailures >= MAX_CONSECUTIVE_FTP_FAILURES) {
+            throw buildAbortError(
+              `FTP 업로드가 ${consecutiveFtpFailures}회 연속 실패했습니다 (productNo=${productNo}): ${err.message}`,
+              { results, productNo, current },
+            );
+          }
+
           try {
             ftpClient.close();
           } catch {}
-          try {
-            ftpClient = await createFtpClient();
-          } catch {
-            ftpClient = null;
+
+          ftpClient = await connectFtpWithRetry(
+            ` (productNo=${productNo} 처리 중)`,
+          );
+
+          // 연결은 되는데 업로드만 실패하는 경우(용량 초과 등)를 여기서 가려낸다.
+          const { writable, reason } = await checkFtpWritable(ftpClient);
+          if (!writable) {
+            throw buildAbortError(
+              `FTP에 파일을 쓸 수 없습니다 (productNo=${productNo}): ${reason}`,
+              { results, productNo, current },
+            );
           }
         }
       }
@@ -276,6 +361,8 @@ async function scrapeProducts(productNos, options = {}) {
 }
 
 module.exports = {
+  getSoldoutFlags,
+  isDeparted,
   fetchProductFromApi,
   buildProductEpData,
   scrapeProduct,

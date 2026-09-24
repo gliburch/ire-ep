@@ -23,6 +23,7 @@ const {
   DAILY_SCRAPE_BATCH_COUNT,
   DAILY_BATCH_TIMEZONE,
   PRODUCT_MASTER_SCRAPE_MONTHS,
+  EP_OVERRIDE_SHEET_URL,
 } = process.env;
 
 module.exports = {
@@ -41,6 +42,7 @@ module.exports = {
   DAILY_SCRAPE_BATCH_COUNT,
   DAILY_BATCH_TIMEZONE,
   PRODUCT_MASTER_SCRAPE_MONTHS,
+  EP_OVERRIDE_SHEET_URL,
 };
 
 const missing = Object.keys(module.exports).filter((key) => !module.exports[key]);

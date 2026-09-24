@@ -2,10 +2,16 @@ const axios = require("axios");
 const apiConfig = require("../config/apiConfig");
 const ProductMaster = require("../models/ProductMaster");
 const {
-  createFtpClient,
+  connectFtpWithRetry,
+  checkFtpWritable,
+  isFtpConnectionError,
+  isFtpQuotaError,
   uploadImageToFtp,
   resetImageUploadCache,
 } = require("./ftpService");
+
+// 연속으로 이만큼 FTP 관련 실패가 나면 원인이 일시적 끊김이 아니라고 보고 중단한다.
+const MAX_CONSECUTIVE_FTP_FAILURES = 5;
 const {
   sanitizeId,
   sanitizeTitle,
@@ -24,8 +30,15 @@ async function buildProductMasterEpData(productMaster, options = {}) {
   const masterCode = productMaster.masterCode || "";
   const masterCodeNo = productMaster.masterCodeNo || "";
   const isDomestic = searchTarget?.type === "theme";
+  // FTP 없이 원본 URL을 저장하면 EP가 조용히 오염되므로 연결을 필수로 둔다.
+  if (productMaster.image && !ftpClient) {
+    throw new Error(
+      `FTP 연결이 없어 이미지를 업로드할 수 없습니다 (masterCode=${masterCode})`,
+    );
+  }
+
   const imageLink = productMaster.image
-    ? (ftpClient ? await uploadImageToFtp(ftpClient, productMaster.image) : productMaster.image)
+    ? await uploadImageToFtp(ftpClient, productMaster.image)
     : "";
 
   // ID 생성: masterCode_PGE_IRE
@@ -172,6 +185,18 @@ async function saveProductMaster(productMaster, searchTarget, options = {}) {
 }
 
 /**
+ * 배치 중단 에러를 만든다.
+ * - 어디까지 진행했는지 호출측이 알 수 있도록 집계와 중단 지점을 함께 싣는다
+ */
+function buildAbortError(message, { results, masterCode }) {
+  const error = new Error(message);
+  error.aborted = true;
+  error.results = results;
+  error.lastMasterCode = masterCode;
+  return error;
+}
+
+/**
  * 전체 ProductMaster 스크래핑 및 DB 저장
  * - searchTargets를 순회하며 SearchProductMaster를 페이지 단위로 조회
  * - masterCode 중복을 제거하면서 DB에 저장
@@ -183,15 +208,16 @@ async function scrapeAllProductMasters(searchTargets, startDate, endDate, option
     onItem,
     delayMs = 100,
   } = options;
-  const results = { created: 0, updated: 0, failed: 0 };
+  const results = { created: 0, updated: 0, failed: 0, failedPages: 0 };
   const seenCodes = new Set();
 
   resetImageUploadCache();
 
-  let ftpClient = null;
+  // 배치 시작 전에 FTP를 확보하지 못하면 아예 시작하지 않는다.
+  let ftpClient = await connectFtpWithRetry();
+  let consecutiveFtpFailures = 0;
 
   try {
-    ftpClient = await createFtpClient();
 
     for (let i = 0; i < searchTargets.length; i++) {
       const searchTarget = searchTargets[i];
@@ -227,6 +253,8 @@ async function scrapeAllProductMasters(searchTargets, startDate, endDate, option
             try {
               const saveResult = await saveProductMaster(productMaster, searchTarget, { ftpClient });
 
+              consecutiveFtpFailures = 0;
+
               if (saveResult.status === "created") {
                 results.created++;
               } else if (saveResult.status === "updated") {
@@ -252,17 +280,51 @@ async function scrapeAllProductMasters(searchTargets, startDate, endDate, option
                 onItem({ productMaster, searchTarget, status: "failed", error: err });
               }
 
-              if (err.message.includes("Timeout") || err.message.includes("closed")) {
+              // 용량 초과는 재연결해도 풀리지 않으므로 즉시 중단한다.
+              if (isFtpQuotaError(err)) {
+                throw buildAbortError(
+                  `FTP 저장 용량이 부족합니다 (masterCode=${productMaster.masterCode}): ${err.message}`,
+                  { results, masterCode: productMaster.masterCode },
+                );
+              }
+
+              if (isFtpConnectionError(err)) {
+                consecutiveFtpFailures++;
+
+                if (consecutiveFtpFailures >= MAX_CONSECUTIVE_FTP_FAILURES) {
+                  throw buildAbortError(
+                    `FTP 업로드가 ${consecutiveFtpFailures}회 연속 실패했습니다 (masterCode=${productMaster.masterCode}): ${err.message}`,
+                    { results, masterCode: productMaster.masterCode },
+                  );
+                }
+
                 try {
                   ftpClient.close();
                 } catch {}
-                ftpClient = await createFtpClient();
+
+                ftpClient = await connectFtpWithRetry(
+                  ` (masterCode=${productMaster.masterCode} 처리 중)`,
+                );
+
+                // 연결은 되는데 업로드만 실패하는 경우(용량 초과 등)를 여기서 가려낸다.
+                const { writable, reason } = await checkFtpWritable(ftpClient);
+                if (!writable) {
+                  throw buildAbortError(
+                    `FTP에 파일을 쓸 수 없습니다 (masterCode=${productMaster.masterCode}): ${reason}`,
+                    { results, masterCode: productMaster.masterCode },
+                  );
+                }
               }
             }
           }
 
           await sleep(delayMs);
         } catch (err) {
+          // 중단 결정은 페이지 단위 에러 처리가 삼키지 않도록 그대로 올린다.
+          if (err.aborted) throw err;
+
+          // 페이지 하나가 통째로 누락되는 것도 실패이므로 집계에 남긴다.
+          results.failedPages++;
           console.error(
             `${searchTarget.type} ${searchTarget.areaNo || searchTarget.themeNo} page ${pageNo} failed:`,
             err.message,

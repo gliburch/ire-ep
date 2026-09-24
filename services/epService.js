@@ -1,5 +1,8 @@
 const ProductMaster = require("../models/ProductMaster");
+const LegacyProductMaster = require("../models/LegacyProductMaster");
+const { getTitleOverrides } = require("./titleOverrideService");
 const Product = require("../models/Product");
+const Package = require("../models/Package");
 
 /**
  * TSV용 제어문자 제거
@@ -44,18 +47,102 @@ const EP_HEADERS = [
 ];
 
 /**
+ * 기존(legacy) 네이버 EP 헤더 필드 (순서 중요)
+ * - packages 컬렉션에 원본 그대로 보관된 EP 데이터용
+ */
+const LEGACY_EP_HEADERS = [
+  "id",
+  "title",
+  "price_pc",
+  "price_mobile",
+  "normal_price",
+  "link",
+  "mobile_link",
+  "image_link",
+  "add_image_link",
+  "category_name1",
+  "category_name2",
+  "category_name3",
+  "category_name4",
+  "naver_category",
+  "naver_product_id",
+  "condition",
+  "import_flag",
+  "parallel_import",
+  "order_made",
+  "product_flag",
+  "adult",
+  "goods_type",
+  "barcode",
+  "manufacture_define_number",
+  "model_number",
+  "brand",
+  "maker",
+  "origin",
+  "card_event",
+  "event_words",
+  "coupon",
+  "partner_coupon_download",
+  "interest_free_event",
+  "point",
+  "installation_costs",
+  "search_tag",
+  "group_id",
+  "vendor_id",
+  "coordi_id",
+  "minimum_purchase_quantity",
+  "review_count",
+  "shipping",
+  "delivery_grade",
+  "delivery_detail",
+  "attribute",
+  "option_detail",
+  "seller_id",
+  "age_group",
+  "gender",
+];
+
+/**
  * 상품 데이터를 TSV 행으로 변환
  */
-function productToTsvRow(epData) {
-  return EP_HEADERS.map((header) => sanitizeForTsv(epData[header])).join("\t");
+function productToTsvRow(epData, headers = EP_HEADERS) {
+  return headers.map((header) => sanitizeForTsv(epData[header])).join("\t");
 }
 
-function buildEpFileContent(epDataList) {
-  const headerRow = EP_HEADERS.join("\t");
-  const dataRows = epDataList.map((epData) => productToTsvRow(epData));
+/**
+ * epData 목록을 EP 파일 내용으로 만든다.
+ * - 제목 덮어쓰기 시트에 id가 있으면 그 title로 바꿔 출력한다
+ * - 시트 제목은 sanitizeTitle을 타지 않는다(수동 값을 그대로 쓰는 것이 목적)
+ */
+async function buildEpFileContent(epDataList, headers = EP_HEADERS) {
+  const overrides = await getTitleOverrides();
+  const matchedIds = new Set();
+
+  const headerRow = headers.join("\t");
+  const dataRows = epDataList.map((epData) => {
+    const overriddenTitle = overrides.get(epData.id);
+    if (!overriddenTitle) {
+      return productToTsvRow(epData, headers);
+    }
+    matchedIds.add(epData.id);
+    return productToTsvRow({ ...epData, title: overriddenTitle }, headers);
+  });
+
+  // 시트에 있지만 EP 대상에 없는 id는 오타일 수 있어 따로 알린다.
+  const unmatchedIds = [...overrides.keys()].filter((id) => !matchedIds.has(id));
+
+  if (overrides.size > 0) {
+    console.log(`\x1b[90m[ep]\x1b[0m 제목 덮어쓰기 ${matchedIds.size}건 적용 (시트 ${overrides.size}건)`);
+  }
+  if (unmatchedIds.length > 0) {
+    console.log(`\x1b[33m[ep]\x1b[0m 미매칭 id ${unmatchedIds.length}건: ${unmatchedIds.join(", ")}`);
+  }
+
   return {
     content: [headerRow, ...dataRows].join("\n"),
     count: epDataList.length,
+    overriddenCount: matchedIds.size,
+    unmatchedOverrideIds: unmatchedIds,
   };
 }
 
@@ -63,16 +150,17 @@ function buildEpFileContent(epDataList) {
  * ProductMaster에서 EP 파일에 포함할 epData만 수집한다.
  * - updatedFrom이 있으면 해당 시점 이후로 updated_at 범위를 제한
  * - updatedFrom이 없으면 전체 epData를 수집
+ * - model로 구 컬렉션(productmasters)을 대신 지정할 수 있다
  */
 async function collectEpData(options = {}) {
-  const { updatedFrom = null } = options;
+  const { updatedFrom = null, model = ProductMaster } = options;
   const query = {};
 
   if (updatedFrom) {
     query.updated_at = { $gte: updatedFrom };
   }
 
-  const masters = await ProductMaster.find(query).lean();
+  const masters = await model.find(query).lean();
 
   const epDataList = [];
 
@@ -88,10 +176,19 @@ async function collectEpData(options = {}) {
  * ProductMaster 기반 EP 파일 생성 단일 진입점
  * @param {object} options
  * @param {Date|null} options.updatedFrom
+ * @param {import("mongoose").Model} [options.model]
  */
 async function generateEpFile(options = {}) {
   const epDataList = await collectEpData(options);
   return buildEpFileContent(epDataList);
+}
+
+/**
+ * 구 컬렉션명(productmasters)에 남아 있는 데이터 기반 EP 파일 생성 진입점
+ * - 스키마와 EP 헤더는 현행 ProductMaster와 동일하고 대상 컬렉션만 다르다
+ */
+async function generateLegacyEpFile(options = {}) {
+  return generateEpFile({ ...options, model: LegacyProductMaster });
 }
 
 /**
@@ -130,10 +227,41 @@ async function generateProductEpFile(options = {}) {
   return buildEpFileContent(epDataList);
 }
 
+/**
+ * Package(기존 EP 원본)에서 epData를 수집한다.
+ * - 원본 컬럼 구조를 그대로 보관하므로 별도 가공 없이 반환
+ */
+async function collectPackageEpData() {
+  const packages = await Package.find({
+    epData: { $exists: true, $ne: null },
+  }).lean();
+
+  const epDataList = [];
+
+  for (const pkg of packages) {
+    if (!pkg.epData) continue;
+    epDataList.push(pkg.epData);
+  }
+
+  return epDataList;
+}
+
+/**
+ * Package 기반 EP 파일 생성 단일 진입점
+ * - 현재 EP_HEADERS가 아니라 원본 legacy 헤더(49컬럼)로 출력한다.
+ */
+async function generatePackageEpFile() {
+  const epDataList = await collectPackageEpData();
+  return buildEpFileContent(epDataList, LEGACY_EP_HEADERS);
+}
+
 module.exports = {
   EP_HEADERS,
+  LEGACY_EP_HEADERS,
   sanitizeForTsv,
   buildEpFileContent,
   generateEpFile,
+  generateLegacyEpFile,
   generateProductEpFile,
+  generatePackageEpFile,
 };
