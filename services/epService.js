@@ -19,38 +19,11 @@ function sanitizeForTsv(value) {
 }
 
 /**
- * 네이버 EP 헤더 필드 (순서 중요)
+ * 네이버 EP 헤더 필드 49컬럼 (순서 중요)
+ * - 네이버에 등록된 EP 포맷이므로 모든 EP 파일이 이 순서를 그대로 따른다
+ * - 수집 단계의 epData가 채우지 않는 컬럼은 빈 값으로 출력한다
  */
 const EP_HEADERS = [
-  "id",
-  "title",
-  "price_pc",
-  "benefit_price",
-  "normal_price",
-  "link",
-  "mobile_link",
-  "image_link",
-  "add_image_link",
-  "category_name1",
-  "category_name2",
-  "category_name3",
-  "category_name4",
-  "naver_category",
-  "brand",
-  "brand_certification",
-  "maker",
-  "origin",
-  "search_tag",
-  "shipping",
-  "attribute",
-  "gender",
-];
-
-/**
- * 기존(legacy) 네이버 EP 헤더 필드 (순서 중요)
- * - packages 컬렉션에 원본 그대로 보관된 EP 데이터용
- */
-const LEGACY_EP_HEADERS = [
   "id",
   "title",
   "price_pc",
@@ -103,10 +76,30 @@ const LEGACY_EP_HEADERS = [
 ];
 
 /**
+ * EP 헤더명과 epData 키가 다른 필드의 대응표
+ * - 수집 단계는 최신 필드명으로 저장하고, 출력은 네이버에 등록된 49컬럼 이름을 쓴다
+ */
+const EP_FIELD_ALIASES = {
+  price_mobile: "benefit_price",
+};
+
+/**
+ * 헤더에 해당하는 값을 epData에서 꺼낸다(별칭 포함)
+ */
+function readEpField(epData, header) {
+  if (epData[header] !== undefined) {
+    return epData[header];
+  }
+
+  const alias = EP_FIELD_ALIASES[header];
+  return alias ? epData[alias] : "";
+}
+
+/**
  * 상품 데이터를 TSV 행으로 변환
  */
 function productToTsvRow(epData, headers = EP_HEADERS) {
-  return headers.map((header) => sanitizeForTsv(epData[header])).join("\t");
+  return headers.map((header) => sanitizeForTsv(readEpField(epData, header))).join("\t");
 }
 
 /**
@@ -248,16 +241,14 @@ async function collectPackageEpData() {
 
 /**
  * Package 기반 EP 파일 생성 단일 진입점
- * - 현재 EP_HEADERS가 아니라 원본 legacy 헤더(49컬럼)로 출력한다.
  */
 async function generatePackageEpFile() {
   const epDataList = await collectPackageEpData();
-  return buildEpFileContent(epDataList, LEGACY_EP_HEADERS);
+  return buildEpFileContent(epDataList);
 }
 
 module.exports = {
   EP_HEADERS,
-  LEGACY_EP_HEADERS,
   sanitizeForTsv,
   buildEpFileContent,
   generateEpFile,
