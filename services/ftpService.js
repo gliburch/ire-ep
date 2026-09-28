@@ -3,6 +3,7 @@ const axios = require("axios");
 const path = require("path");
 const crypto = require("crypto");
 const { Readable } = require("stream");
+const { resizeImageBuffer } = require("./imageResizeService");
 
 const FTP_CONFIG = {
   host: process.env.FTP_HOST,
@@ -131,7 +132,11 @@ async function getExistingImageFilenames(ftpClient) {
   if (existingFilesCache) return existingFilesCache;
 
   const list = await ftpClient.list(IMAGE_DIR);
-  existingFilesCache = new Set(list.map((f) => f.name));
+  // 용량 초과로 전송이 끊기면 0바이트 파일이 남는다. 이를 "이미 올라간 파일"로
+  // 세면 깨진 이미지를 그대로 둔 채 정상 URL을 저장하게 되므로 제외한다.
+  existingFilesCache = new Set(
+    list.filter((f) => !f.isDirectory && f.size > 0).map((f) => f.name),
+  );
   return existingFilesCache;
 }
 
@@ -163,9 +168,24 @@ async function uploadImageToFtp(ftpClient, imageUrl) {
     timeout: 30000,
   });
 
+  // 원본은 수천만 화소짜리도 섞여 있어 그대로 올리면 FTP 용량이 금세 찬다.
+  // EP에 필요한 크기로 줄여서 올린다.
+  const { buffer } = await resizeImageBuffer(
+    Buffer.from(response.data),
+    getImageExtension(imageUrl),
+  );
+
   // 업로드
-  const stream = Readable.from(Buffer.from(response.data));
+  const stream = Readable.from(buffer);
   await ftpClient.uploadFrom(stream, remotePath);
+
+  // 전송이 조용히 잘려 0바이트로 남는 경우가 있어 올린 크기를 확인한다.
+  const uploadedSize = await ftpClient.size(remotePath);
+  if (uploadedSize !== buffer.length) {
+    throw new Error(
+      `이미지 업로드가 불완전합니다 (${filename}): ${uploadedSize}/${buffer.length} bytes`,
+    );
+  }
 
   uploadedCache.add(filename);
   existingFilesCache?.add(filename);
