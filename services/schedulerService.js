@@ -10,18 +10,19 @@ const { generateProductEpFile } = require("./epService");
 const { uploadEpFileToFtp } = require("./ftpService");
 
 // 크론 1회가 수집할 상품 개수.
-const BATCH_SIZE = 300;
+const BATCH_SIZE = 500;
 
 // 재검증 크론 1회가 다룰 상품 수와 동시 요청 수.
-const REFRESH_BATCH_SIZE = 1000;
-const REFRESH_CONCURRENCY = 10;
+const REFRESH_BATCH_SIZE = 5000;
+const REFRESH_CONCURRENCY = 20;
 
 // 크론이 겹쳐 떠도 같은 구간을 두 번 재검증하지 않도록 보는 창.
+// 시간당 4회로 촘촘해졌으므로 짧게 잡는다. 길면 정상 실행까지 걸러낸다.
 // 재검증은 번호 구간이 아니라 "verifiedAt이 가장 오래된 N개"를 그때그때 집으므로
 // CronJob의 (job, startNo) 선점을 쓸 수 없다(선점할 번호가 없다). 대신 직전 실행
 // 시각으로 거른다. 잠금이 아니므로 밀리초 단위로 겹쳐 뜨면 뚫리지만, 그때 생기는
-// 손해는 같은 1000건에 API를 두 번 쓰는 것뿐이고 데이터가 깨지지는 않는다.
-const REFRESH_COOLDOWN_MS = 10 * 60 * 1000;
+// 손해는 같은 묶음에 API를 두 번 쓰는 것뿐이고 데이터가 깨지지는 않는다.
+const REFRESH_COOLDOWN_MS = 3 * 60 * 1000;
 
 // ProductMaster 수집은 전체 검색 대상을 이 개수로 나눠 크론별로 한 조각씩 맡는다.
 // vercel.json에 걸린 collect-product-master 크론 개수와 같아야 한다.

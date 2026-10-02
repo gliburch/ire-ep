@@ -14,12 +14,9 @@
       minute: "2-digit",
     });
   };
-  const formatSize = (bytes) => {
-    if (bytes === null || bytes === undefined) return "로컬 파일 없음";
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
-  };
   const epPrimary = summary.epFiles[0];
+  // 비교용으로 늘 열어보는 경쟁사 EP. 고정값이라 템플릿에 둔다
+  const MODETOUR_EP_URL = "https://staticservice.modetour.com/onbp/naver_ep/6352_naver_ep.txt";
 %>
 <!DOCTYPE html>
 <html lang="ko" class="h-full">
@@ -66,39 +63,39 @@
   <body class="h-full bg-canvas font-sans text-ink antialiased">
     <div class="flex h-full flex-col">
       <!-- 개괄 정보: 목록에 자리를 내주려고 두 줄로 압축해 둔다 -->
-      <header class="shrink-0 border-b border-line bg-white px-4 py-2.5 md:px-6">
-        <div class="mx-auto flex w-full max-w-[1440px] flex-col gap-1.5">
+      <header class="shrink-0 border-b border-line bg-white px-4 py-4 md:px-6">
+        <div class="mx-auto flex w-full max-w-[1440px] flex-col gap-2.5">
           <!-- 1행: 타이틀 · 핵심 수치 · 새로고침 -->
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h1 class="text-[16px] font-bold leading-tight tracking-tight md:text-[17px]">EP 수집 현황</h1>
-            <p class="hidden text-[11px] text-ink-mute sm:block">
+            <h1 class="text-[18px] font-bold leading-tight tracking-tight md:text-[20px]">EP 수집 현황</h1>
+            <p class="hidden text-[12px] text-ink-mute sm:block">
               <%= summary.timezone %> · <span data-field="generatedAt"><%= formatDateTime(summary.generatedAt) %></span>
             </p>
             <div class="ml-auto flex items-center gap-1.5">
-              <span class="inline-flex items-baseline gap-1 rounded-lg bg-canvas px-2 py-1">
-                <span class="text-[11px] text-ink-mute">전체</span>
-                <span class="text-[13px] font-bold tabular-nums" data-field="counts.products"><%= formatNumber(summary.counts.products) %></span>
+              <span class="inline-flex items-baseline gap-1 rounded-lg bg-canvas px-2.5 py-1.5">
+                <span class="text-[12px] text-ink-mute">전체</span>
+                <span class="text-[14px] font-bold tabular-nums" data-field="counts.products"><%= formatNumber(summary.counts.products) %></span>
               </span>
-              <span class="inline-flex items-baseline gap-1 rounded-lg bg-canvas px-2 py-1">
-                <span class="text-[11px] text-ink-mute">EP 보유</span>
-                <span class="text-[13px] font-bold tabular-nums" data-field="counts.productsWithEp"><%= formatNumber(summary.counts.productsWithEp) %></span>
+              <span class="inline-flex items-baseline gap-1 rounded-lg bg-canvas px-2.5 py-1.5">
+                <span class="text-[12px] text-ink-mute">EP 보유</span>
+                <span class="text-[14px] font-bold tabular-nums" data-field="counts.productsWithEp"><%= formatNumber(summary.counts.productsWithEp) %></span>
               </span>
-              <span class="inline-flex items-baseline gap-1 rounded-lg bg-brand-weak px-2 py-1">
-                <span class="text-[11px] text-brand-strong">노출 대상</span>
-                <span class="text-[13px] font-bold tabular-nums text-brand-strong" data-field="counts.epCandidates"><%= formatNumber(summary.counts.epCandidates) %></span>
+              <span class="inline-flex items-baseline gap-1 rounded-lg bg-brand-weak px-2.5 py-1.5">
+                <span class="text-[12px] text-brand-strong">노출 대상</span>
+                <span class="text-[14px] font-bold tabular-nums text-brand-strong" data-field="counts.epCandidates"><%= formatNumber(summary.counts.epCandidates) %></span>
               </span>
               <button
                 type="button"
                 data-action="refresh-summary"
-                class="shrink-0 rounded-lg bg-line px-2.5 py-1 text-[12px] font-semibold text-ink-sub transition hover:bg-line-strong active:scale-[0.98]"
+                class="shrink-0 rounded-lg bg-line px-3 py-1.5 text-[12px] font-semibold text-ink-sub transition hover:bg-line-strong active:scale-[0.98]"
               >
                 새로고침
               </button>
             </div>
           </div>
 
-          <!-- 2행: 콜렉션 건수 · EP 주소 · 최근 크론. 보조 정보라 한 줄 텍스트로 눕힌다 -->
-          <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-mute">
+          <!-- 2행: 콜렉션 건수 · 최근 크론. 보조 정보라 한 줄 텍스트로 눕힌다 -->
+          <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-ink-mute">
             <% const collectionCounts = [
               { label: "product", field: "products", value: summary.counts.products },
               { label: "masterProduct", field: "productMasters", value: summary.counts.productMasters },
@@ -112,29 +109,6 @@
             <% }) %>
 
             <span aria-hidden="true" class="text-line-strong">|</span>
-
-            <% if (epPrimary.url) { %>
-              <a
-                href="<%= epPrimary.url %>"
-                target="_blank"
-                rel="noreferrer"
-                class="max-w-[260px] truncate font-semibold text-brand hover:text-brand-strong hover:underline sm:max-w-none"
-              ><%= epPrimary.url %></a>
-              <button
-                type="button"
-                data-action="copy"
-                data-copy-value="<%= epPrimary.url %>"
-                class="shrink-0 rounded-md bg-brand-weak px-1.5 py-0.5 text-[11px] font-semibold text-brand-strong transition hover:bg-brand hover:text-white"
-              >
-                복사
-              </button>
-            <% } else { %>
-              <span class="font-semibold text-ink-mute">FTP_BASE_URL 미설정</span>
-            <% } %>
-            <span class="hidden sm:inline"><%= formatSize(epPrimary.localSize) %> · <%= formatDateTime(epPrimary.localModifiedAt) %></span>
-
-            <span aria-hidden="true" class="text-line-strong">|</span>
-
             <% if (summary.latestCronJob) { %>
               <span>
                 최근 <%= summary.latestCronJob.job %>
@@ -147,6 +121,49 @@
               <span>최근 크론 <span class="font-semibold text-ink-sub">기록 없음</span></span>
             <% } %>
             <span>· 최근 수집 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCollectedAt) %></span></span>
+          </div>
+
+          <!-- 3행: EP 주소. 복사해 쓰는 값이라 한 줄씩 떼어 둔다 -->
+          <div class="flex flex-col gap-1.5 text-[12px] text-ink-mute">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span class="w-[52px] shrink-0 font-semibold text-ink-sub">우리</span>
+              <% if (epPrimary.url) { %>
+                <a
+                  href="<%= epPrimary.url %>"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="truncate font-semibold text-brand hover:text-brand-strong hover:underline"
+                ><%= epPrimary.url %></a>
+                <button
+                  type="button"
+                  data-action="copy"
+                  data-copy-value="<%= epPrimary.url %>"
+                  class="shrink-0 rounded-md bg-brand-weak px-1.5 py-0.5 text-[11px] font-semibold text-brand-strong transition hover:bg-brand hover:text-white"
+                >
+                  복사
+                </button>
+              <% } else { %>
+                <span class="font-semibold text-ink-mute">FTP_BASE_URL 미설정</span>
+              <% } %>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span class="w-[52px] shrink-0 font-semibold text-ink-sub">모두투어</span>
+              <a
+                href="<%= MODETOUR_EP_URL %>"
+                target="_blank"
+                rel="noreferrer"
+                class="truncate font-semibold text-brand hover:text-brand-strong hover:underline"
+              ><%= MODETOUR_EP_URL %></a>
+              <button
+                type="button"
+                data-action="copy"
+                data-copy-value="<%= MODETOUR_EP_URL %>"
+                class="shrink-0 rounded-md bg-brand-weak px-1.5 py-0.5 text-[11px] font-semibold text-brand-strong transition hover:bg-brand hover:text-white"
+              >
+                복사
+              </button>
+            </div>
           </div>
         </div>
       </header>
