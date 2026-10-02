@@ -246,14 +246,26 @@ function buildAbortError(message, { results, productNo, current }) {
  * 여러 상품(productNo 목록)을 하나의 FTP 연결로 순차 스크래핑
  * - 404/Invalid 응답은 skipped, 판매 종료/취소는 soldout, 출발일 경과는 departed로 분류
  * - created/updated/skipped/failed 집계를 반환
+ * - shouldStop이 true를 돌려주면 남은 상품을 건너뛰고 그 지점까지의 집계를 반환한다
+ *   (서버리스 실행시간 제한처럼 바깥에서 정한 예산을 지키기 위한 장치)
  */
 async function scrapeProducts(productNos, options = {}) {
   const {
     onProgress,
     onItem,
+    shouldStop,
     delayMs = 100,
   } = options;
-  const results = { created: 0, updated: 0, soldout: 0, departed: 0, skipped: 0, failed: 0 };
+  const results = {
+    created: 0,
+    updated: 0,
+    soldout: 0,
+    departed: 0,
+    skipped: 0,
+    failed: 0,
+    processed: 0,
+    stoppedEarly: false,
+  };
   const total = productNos.length;
 
   resetImageUploadCache();
@@ -268,6 +280,13 @@ async function scrapeProducts(productNos, options = {}) {
     for (let i = 0; i < total; i++) {
       const productNo = productNos[i];
       const current = i + 1;
+
+      // 중단 판단은 상품 처리를 시작하기 전에 한다. 상품 하나가 이미지 업로드까지
+      // 수 초를 쓰므로, 시작한 건은 끝까지 마쳐야 중간 상태가 남지 않는다.
+      if (shouldStop && shouldStop({ current, total, productNo })) {
+        results.stoppedEarly = true;
+        break;
+      }
 
       try {
         const { product, status, soldoutFlags, departureDate } = await scrapeProduct(productNo, { ftpClient });
@@ -342,6 +361,8 @@ async function scrapeProducts(productNos, options = {}) {
           }
         }
       }
+
+      results.processed++;
 
       if (onProgress) {
         onProgress({ current: i + 1, total, productNo, ...results });

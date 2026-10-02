@@ -136,27 +136,21 @@
               <% } %>
             </div>
 
-            <!-- 최근 배치 현황 -->
+            <!-- 최근 크론 작업 현황 -->
             <div class="flex min-w-0 flex-1 flex-col justify-center rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
-              <% if (summary.dailyBatch) { %>
-                <div class="flex items-center justify-between gap-2">
-                  <p class="text-[12px] font-medium text-ink-mute">최근 배치 <%= summary.dailyBatch.dateKey %></p>
-                  <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold <%= summary.dailyBatch.finalizedAt ? 'bg-brand-weak text-brand-strong' : 'bg-line text-ink-sub' %>">
-                    <%= summary.dailyBatch.finalizedAt ? '마감 완료' : '진행 중' %>
-                  </span>
-                </div>
-                <p class="mt-1 text-[14px] font-semibold tabular-nums">
-                  신규 <%= formatNumber(summary.dailyBatch.stats.created) %>
-                  <span class="text-ink-mute">·</span>
-                  갱신 <%= formatNumber(summary.dailyBatch.stats.updated) %>
-                  <span class="text-ink-mute">·</span>
-                  <span class="<%= summary.dailyBatch.stats.failed ? 'text-negative' : '' %>">실패 <%= formatNumber(summary.dailyBatch.stats.failed) %></span>
+              <% if (summary.latestCronJob) { %>
+                <p class="text-[12px] font-medium text-ink-mute">최근 <%= summary.latestCronJob.job %> 작업</p>
+                <p class="mt-1 text-[14px] font-semibold">
+                  <%= formatDateTime(summary.latestCronJob.ranAt) %>
                 </p>
                 <p class="mt-0.5 text-[12px] text-ink-mute">
-                  배치 <%= summary.dailyBatch.completedBatches %>개 완료 · 최근 수집 <%= formatDateTime(summary.latestCollectedAt) %>
+                  <% if (summary.latestCronJob.startNo) { %>
+                    <%= formatNumber(summary.latestCronJob.startNo) %> ~ <%= formatNumber(summary.latestCronJob.lastNo) %> ·
+                  <% } %>
+                  최근 수집 <%= formatDateTime(summary.latestCollectedAt) %>
                 </p>
               <% } else { %>
-                <p class="text-[12px] font-medium text-ink-mute">최근 배치</p>
+                <p class="text-[12px] font-medium text-ink-mute">최근 크론 작업</p>
                 <p class="mt-1 text-[14px] font-semibold text-ink-mute">기록 없음</p>
                 <p class="mt-0.5 text-[12px] text-ink-mute">최근 수집 <%= formatDateTime(summary.latestCollectedAt) %></p>
               <% } %>

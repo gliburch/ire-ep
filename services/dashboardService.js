@@ -2,8 +2,9 @@ const path = require("path");
 const fs = require("fs");
 const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
-const DailyBatchState = require("../models/DailyBatchState");
-const { EP_FILENAME } = require("../config/env");
+const CronJob = require("../models/CronJob");
+const { CRON_JOB_TYPES } = CronJob;
+const { EP_FILENAME, CRON_TIMEZONE } = require("../config/env");
 
 // 날짜 필터는 운영 기준 시간대(기본 Asia/Seoul)의 하루 경계로 해석한다.
 const TIMEZONE_OFFSETS = {
@@ -25,8 +26,7 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
 function getTimezoneOffset() {
-  const timezone = process.env.DAILY_BATCH_TIMEZONE || "Asia/Seoul";
-  return TIMEZONE_OFFSETS[timezone] || "+09:00";
+  return TIMEZONE_OFFSETS[CRON_TIMEZONE] || "+09:00";
 }
 
 /**
@@ -140,7 +140,7 @@ async function getSummary() {
     productMasterCount,
     latestCreated,
     latestUpdated,
-    latestBatch,
+    latestCollectJob,
   ] = await Promise.all([
     Product.countDocuments({}),
     Product.countDocuments({ epData: { $exists: true, $ne: null } }),
@@ -151,7 +151,7 @@ async function getSummary() {
     ProductMaster.countDocuments({}),
     Product.findOne({}).sort({ createdAt: -1 }).select("createdAt").lean(),
     Product.findOne({}).sort({ updatedAt: -1 }).select("updatedAt").lean(),
-    DailyBatchState.findOne({}).sort({ dateKey: -1 }).lean(),
+    CronJob.findOne({ job: CRON_JOB_TYPES.PRODUCT_COLLECT }).sort({ created_at: -1 }).lean(),
   ]);
 
   return {
@@ -164,16 +164,16 @@ async function getSummary() {
     },
     latestCollectedAt: latestCreated?.createdAt || null,
     latestUpdatedAt: latestUpdated?.updatedAt || null,
-    dailyBatch: latestBatch
+    latestCronJob: latestCollectJob
       ? {
-          dateKey: latestBatch.dateKey,
-          completedBatches: latestBatch.completedBatches?.length || 0,
-          stats: latestBatch.stats || { created: 0, updated: 0, failed: 0 },
-          finalizedAt: latestBatch.finalizedAt || null,
+          job: latestCollectJob.job,
+          startNo: latestCollectJob.startNo || null,
+          lastNo: latestCollectJob.lastNo || null,
+          ranAt: latestCollectJob.created_at || null,
         }
       : null,
     epFiles: getEpFiles(),
-    timezone: process.env.DAILY_BATCH_TIMEZONE || "Asia/Seoul",
+    timezone: CRON_TIMEZONE,
     generatedAt: new Date(),
   };
 }

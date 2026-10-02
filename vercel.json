@@ -2,47 +2,28 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/daily-scrape-1",
-      "schedule": "0 14 * * *"
+      "path": "/api/cron/collect",
+      "schedule": "0 4 * * *"
     },
     {
-      "path": "/api/cron/daily-scrape-2",
-      "schedule": "5 14 * * *"
+      "path": "/api/cron/collect",
+      "schedule": "5 4 * * *"
     },
     {
-      "path": "/api/cron/daily-scrape-3",
-      "schedule": "10 14 * * *"
+      "path": "/api/cron/collect",
+      "schedule": "10 4 * * *"
     },
     {
-      "path": "/api/cron/daily-scrape-4",
-      "schedule": "15 14 * * *"
+      "path": "/api/cron/collect",
+      "schedule": "15 4 * * *"
     },
     {
-      "path": "/api/cron/daily-scrape-5",
-      "schedule": "20 14 * * *"
-    },
-    {
-      "path": "/api/cron/daily-finalize",
-      "schedule": "30 14 * * *"
+      "path": "/api/cron/collect",
+      "schedule": "20 4 * * *"
     }
   ],
   "functions": {
-    "api/cron/daily-scrape-1.js": {
-      "maxDuration": 300
-    },
-    "api/cron/daily-scrape-2.js": {
-      "maxDuration": 300
-    },
-    "api/cron/daily-scrape-3.js": {
-      "maxDuration": 300
-    },
-    "api/cron/daily-scrape-4.js": {
-      "maxDuration": 300
-    },
-    "api/cron/daily-scrape-5.js": {
-      "maxDuration": 300
-    },
-    "api/cron/daily-finalize.js": {
+    "api/cron/collect.js": {
       "maxDuration": 300
     }
   }

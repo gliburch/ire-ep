@@ -20,8 +20,7 @@ const {
   MODETOUR_COMPANY_NO,
   MODETOUR_DEVICE_TYPE,
   CRON_SECRET,
-  DAILY_SCRAPE_BATCH_COUNT,
-  DAILY_BATCH_TIMEZONE,
+  CRON_TIMEZONE,
   PRODUCT_MASTER_SCRAPE_MONTHS,
   EP_OVERRIDE_SHEET_URL,
   EP_FILENAME,
@@ -40,19 +39,15 @@ const required = {
   MODETOUR_COMPANY_NO,
   MODETOUR_DEVICE_TYPE,
   CRON_SECRET,
-  DAILY_SCRAPE_BATCH_COUNT,
-  DAILY_BATCH_TIMEZONE,
+  CRON_TIMEZONE,
   PRODUCT_MASTER_SCRAPE_MONTHS,
   EP_OVERRIDE_SHEET_URL,
-};
-
-// 비어 있어도 기본값으로 동작하는 값들.
-const optional = {
   // 최종 EP 산출물 및 FTP 업로드 파일명.
-  EP_FILENAME: EP_FILENAME || "ire_naver_ep.txt",
+  // 운영/로컬에서 서로 다른 파일을 쓰므로 기본값을 두지 않는다.
+  EP_FILENAME,
 };
 
-module.exports = { ...required, ...optional };
+module.exports = required;
 
 const missing = Object.keys(required).filter((key) => !required[key]);
 

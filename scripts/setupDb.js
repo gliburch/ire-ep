@@ -10,10 +10,10 @@ mongoose.set("autoIndex", false);
 // 모든 모델을 등록해 컬렉션과 인덱스 정의를 로드한다.
 const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
-const DailyBatchState = require("../models/DailyBatchState");
+const CronJob = require("../models/CronJob");
 const Package = require("../models/Package");
 
-const MODELS = [Product, ProductMaster, DailyBatchState, Package];
+const MODELS = [Product, ProductMaster, CronJob, Package];
 
 // MongoDB는 스키마리스라 첫 저장 시 컬렉션이 자동 생성되지만,
 // 이 스크립트는 컬렉션을 미리 만들고 스키마에 정의된 인덱스(unique 등)를
