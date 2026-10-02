@@ -1,5 +1,4 @@
 const ProductMaster = require("../models/ProductMaster");
-const LegacyProductMaster = require("../models/LegacyProductMaster");
 const { getTitleOverrides } = require("./titleOverrideService");
 const Product = require("../models/Product");
 const Package = require("../models/Package");
@@ -143,17 +142,16 @@ async function buildEpFileContent(epDataList, headers = EP_HEADERS) {
  * ProductMaster에서 EP 파일에 포함할 epData만 수집한다.
  * - updatedFrom이 있으면 해당 시점 이후로 updated_at 범위를 제한
  * - updatedFrom이 없으면 전체 epData를 수집
- * - model로 구 컬렉션(productmasters)을 대신 지정할 수 있다
  */
 async function collectEpData(options = {}) {
-  const { updatedFrom = null, model = ProductMaster } = options;
+  const { updatedFrom = null } = options;
   const query = {};
 
   if (updatedFrom) {
     query.updated_at = { $gte: updatedFrom };
   }
 
-  const masters = await model.find(query).lean();
+  const masters = await ProductMaster.find(query).lean();
 
   const epDataList = [];
 
@@ -169,19 +167,10 @@ async function collectEpData(options = {}) {
  * ProductMaster 기반 EP 파일 생성 단일 진입점
  * @param {object} options
  * @param {Date|null} options.updatedFrom
- * @param {import("mongoose").Model} [options.model]
  */
 async function generateEpFile(options = {}) {
   const epDataList = await collectEpData(options);
   return buildEpFileContent(epDataList);
-}
-
-/**
- * 구 컬렉션명(productmasters)에 남아 있는 데이터 기반 EP 파일 생성 진입점
- * - 스키마와 EP 헤더는 현행 ProductMaster와 동일하고 대상 컬렉션만 다르다
- */
-async function generateLegacyEpFile(options = {}) {
-  return generateEpFile({ ...options, model: LegacyProductMaster });
 }
 
 /**
@@ -252,7 +241,6 @@ module.exports = {
   sanitizeForTsv,
   buildEpFileContent,
   generateEpFile,
-  generateLegacyEpFile,
   generateProductEpFile,
   generatePackageEpFile,
 };

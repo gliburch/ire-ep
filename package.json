@@ -15,7 +15,6 @@
     "scrape:productMasters:prd": "NODE_ENV=production node scripts/productMasters.js",
     "ep:productMasters:dev": "node scripts/ep.productMasters.js",
     "ep:productMasters:prd": "NODE_ENV=production node scripts/ep.productMasters.js",
-    "ep:legacyProductMasters:prd": "NODE_ENV=production node scripts/ep.legacyProductMasters.js",
     "ep:products:dev": "node scripts/ep.products.js",
     "ep:products:prd": "NODE_ENV=production node scripts/ep.products.js",
     "ep:packages:dev": "node scripts/ep.packages.js",
