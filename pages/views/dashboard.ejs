@@ -76,7 +76,7 @@
                 <span class="text-[12px] text-ink-mute">전체</span>
                 <span class="text-[14px] font-bold tabular-nums" data-field="counts.products"><%= formatNumber(summary.counts.products) %></span>
               </span>
-              <span class="inline-flex items-baseline gap-1 whitespace-nowrap rounded-lg bg-canvas px-2.5 py-1.5">
+              <span class="hidden items-baseline gap-1 whitespace-nowrap rounded-lg bg-canvas px-2.5 py-1.5 sm:inline-flex">
                 <span class="text-[12px] text-ink-mute">EP 보유</span>
                 <span class="text-[14px] font-bold tabular-nums" data-field="counts.productsWithEp"><%= formatNumber(summary.counts.productsWithEp) %></span>
               </span>
@@ -94,8 +94,8 @@
             </div>
           </div>
 
-          <!-- 2행: 콜렉션 건수 · 최근 크론. 보조 정보라 모바일에서는 접는다 -->
-          <div class="hidden flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-ink-mute sm:flex">
+          <!-- 2행: 콜렉션 건수 · 최근 크론. 보조 정보라 한 줄 텍스트로 눕힌다 -->
+          <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-ink-mute">
             <% const collectionCounts = [
               { label: "product", field: "products", value: summary.counts.products },
               { label: "masterProduct", field: "productMasters", value: summary.counts.productMasters },
@@ -147,7 +147,7 @@
               <% } %>
             </div>
 
-            <div class="hidden flex-wrap items-center gap-x-2 gap-y-1 sm:flex">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span class="w-[52px] shrink-0 font-semibold text-ink-sub">모두투어</span>
               <a
                 href="<%= MODETOUR_EP_URL %>"
