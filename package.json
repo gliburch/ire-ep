@@ -24,7 +24,6 @@
     "refresh:products:dev": "node scripts/refresh.products.js",
     "refresh:products:prd": "NODE_ENV=production node scripts/refresh.products.js",
     "uploadEp": "node scripts/uploadEp.js",
-    "backfill:ep-titles": "node scripts/backfillEpTitles.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

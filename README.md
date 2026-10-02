@@ -38,7 +38,6 @@ npm run dev                  # 헬스체크 서버 (GET /, /health)
 | `npm run ep:packages:<env>` | Package 기준 EP를 `dist/`에 생성 |
 | `npm run ep:<env>` | 생성된 EP 파일들을 legacy 헤더 기준 하나로 병합 |
 | `npm run refresh:products:<env> -- [limit] [concurrency]` | `verifiedAt` 오래된 순으로 저장된 Product 재검증 |
-| `npm run backfill:ep-titles` | 저장된 `epData.title`을 현재 정제 규칙으로 재계산 |
 
 EP 명령어는 `:dev`/`:prd` 접미사로 대상 환경을 정한다.
 `NODE_ENV=production` 여부로 `config/env.js`가 읽을 dotenv 파일이 갈린다.
