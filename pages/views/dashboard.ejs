@@ -19,7 +19,7 @@
   const MODETOUR_EP_URL = "https://staticservice.modetour.com/onbp/naver_ep/6352_naver_ep.txt";
 %>
 <!DOCTYPE html>
-<html lang="ko" class="h-full">
+<html lang="ko" class="md:h-full">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -60,8 +60,8 @@
       }
     </style>
   </head>
-  <body class="h-full bg-canvas font-sans text-ink antialiased">
-    <div class="flex h-full flex-col">
+  <body class="bg-canvas font-sans text-ink antialiased md:h-full">
+    <div class="flex flex-col md:h-full">
       <!-- 개괄 정보: 목록에 자리를 내주려고 두 줄로 압축해 둔다 -->
       <header class="shrink-0 border-b border-line bg-white px-4 py-2.5 md:px-6 md:py-4">
         <div class="mx-auto flex w-full max-w-[1440px] flex-col gap-1.5 md:gap-2.5">
@@ -193,7 +193,7 @@
       </nav>
 
       <!-- 목록 영역: 데스크톱 반반 분할 -->
-      <main class="mx-auto flex min-h-0 w-full max-w-[1440px] flex-1 flex-col gap-0 p-0 md:flex-row md:gap-4 md:p-4">
+      <main class="mx-auto flex w-full max-w-[1440px] flex-col gap-0 p-0 md:min-h-0 md:flex-1 md:flex-row md:gap-4 md:p-4">
         <%
           const panels = [
             { key: "created", title: "최근 수집", caption: "createdAt 기준 최신순", dateLabel: "수집일" },
@@ -203,7 +203,7 @@
         <% panels.forEach((panel, index) => { %>
           <section
             data-panel="<%= panel.key %>"
-            class="flex min-h-0 w-full flex-1 flex-col bg-white md:w-1/2 md:rounded-2xl md:border md:border-line md:shadow-card <%= index === 1 ? 'hidden md:flex' : '' %>"
+            class="flex w-full flex-col bg-white md:min-h-0 md:w-1/2 md:flex-1 md:rounded-2xl md:border md:border-line md:shadow-card <%= index === 1 ? 'hidden md:flex' : '' %>"
           >
             <!-- 패널 헤더 -->
             <div class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-2 md:py-3">
@@ -233,7 +233,7 @@
             <!-- 패널 바디 (스크롤) -->
             <% if (panel.table) { %>
               <!-- 표는 컬럼이 많아 가로로도 스크롤된다 -->
-              <div data-role="body" class="min-h-0 flex-1 overflow-auto overscroll-contain scrollbar-slim">
+              <div data-role="body" class="overflow-x-auto md:min-h-0 md:flex-1 md:overflow-auto md:overscroll-contain md:scrollbar-slim">
                 <table class="w-full min-w-[640px] border-collapse text-left text-[12px]">
                   <thead class="sticky top-0 z-10 bg-canvas text-[11px] font-semibold text-ink-mute">
                     <tr>
@@ -249,7 +249,7 @@
                 <p data-role="state" class="px-4 py-10 text-center text-[13px] text-ink-mute">불러오는 중…</p>
               </div>
             <% } else { %>
-              <div data-role="body" class="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-slim">
+              <div data-role="body" class="md:min-h-0 md:flex-1 md:overflow-y-auto md:overscroll-contain md:scrollbar-slim">
                 <div data-role="list" class="divide-y divide-line"></div>
                 <p data-role="state" class="px-4 py-10 text-center text-[13px] text-ink-mute">불러오는 중…</p>
               </div>
