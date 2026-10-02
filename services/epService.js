@@ -187,7 +187,7 @@ async function collectProductEpData(options = {}) {
     query.departureDate = { $gte: today };
   }
 
-  const products = await Product.find(query).lean();
+  const products = await Product.find(query, { epData: 1, _id: 0 }).lean();
 
   const epDataList = [];
 
