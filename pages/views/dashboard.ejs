@@ -365,13 +365,20 @@
               '" alt="" loading="lazy" class="h-14 w-14 shrink-0 rounded-xl bg-canvas object-cover" onerror="this.remove()" />'
             : '<div class="h-14 w-14 shrink-0 rounded-xl bg-canvas"></div>';
 
+          // 출발일 접미사는 EP에서 제목 뒤에 붙는 값이다. 제목 본문과 구분되도록 연하게 둔다.
+          var titleHtml =
+            escapeHtml(item.title) +
+            (item.departureSuffix
+              ? ' <span class="font-normal text-ink-mute">| ' + escapeHtml(item.departureSuffix) + "</span>"
+              : "");
+
           var titleNode = item.link
             ? '<a href="' +
               escapeHtml(item.link) +
               '" target="_blank" rel="noreferrer" class="line-clamp-2 text-[14px] font-semibold leading-snug text-ink hover:text-brand hover:underline">' +
-              escapeHtml(item.title) +
+              titleHtml +
               "</a>"
-            : '<p class="line-clamp-2 text-[14px] font-semibold leading-snug text-ink">' + escapeHtml(item.title) + "</p>";
+            : '<p class="line-clamp-2 text-[14px] font-semibold leading-snug text-ink">' + titleHtml + "</p>";
 
           return (
             '<article class="flex gap-3 px-4 py-3 transition hover:bg-canvas">' +

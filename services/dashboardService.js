@@ -7,6 +7,7 @@ const Package = require("../models/Package");
 const CronJob = require("../models/CronJob");
 const { CRON_JOB_TYPES } = CronJob;
 const { EP_FILENAME, CRON_TIMEZONE } = require("../config/env");
+const { formatDepartureSuffix } = require("./scraperUtils");
 
 // 날짜 필터는 운영 기준 시간대(기본 Asia/Seoul)의 하루 경계로 해석한다.
 const TIMEZONE_OFFSETS = {
@@ -55,6 +56,8 @@ function toListItem(product) {
   return {
     productNo: product.productNo,
     title: epData.title || "(제목 없음)",
+    // EP에 나갈 제목은 여기에 접미사가 붙은 모양이다. 화면도 같은 함수로 만들어 둘이 어긋나지 않게 한다.
+    departureSuffix: formatDepartureSuffix(product.departureDate),
     price: epData.price_pc || epData.benefit_price || "",
     link: epData.link || "",
     imageLink: epData.image_link || "",
