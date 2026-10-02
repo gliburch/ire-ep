@@ -12,8 +12,9 @@ const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
 const CronJob = require("../models/CronJob");
 const Package = require("../models/Package");
+const ChangeLog = require("../models/ChangeLog");
 
-const MODELS = [Product, ProductMaster, CronJob, Package];
+const MODELS = [Product, ProductMaster, CronJob, Package, ChangeLog];
 
 // MongoDB는 스키마리스라 첫 저장 시 컬렉션이 자동 생성되지만,
 // 이 스크립트는 컬렉션을 미리 만들고 스키마에 정의된 인덱스(unique 등)를
