@@ -2,6 +2,8 @@ const path = require("path");
 const fs = require("fs");
 const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
+const ChangeLog = require("../models/ChangeLog");
+const Package = require("../models/Package");
 const CronJob = require("../models/CronJob");
 const { CRON_JOB_TYPES } = CronJob;
 const { EP_FILENAME, CRON_TIMEZONE } = require("../config/env");
@@ -106,6 +108,61 @@ async function getProductFeed(options = {}) {
 }
 
 /**
+ * 변경 기록 한 건을 목록용으로 평탄화한다.
+ * - changes는 가공하지 않고 원본 그대로 넘긴다(화면에서 JSON으로 그대로 보여준다)
+ */
+function toChangeLogItem(log) {
+  return {
+    id: String(log._id),
+    entity: log.entity,
+    refKey: log.refKey,
+    action: log.action,
+    note: log.note || "",
+    changes: log.changes || null,
+    createdAt: log.createdAt || null,
+  };
+}
+
+/**
+ * 수정/삭제 기록을 페이지 단위로 조회한다.
+ * - Product 문서는 삭제되면 사라지므로, 무엇이 왜 바뀌었는지는 이 콜렉션으로만 볼 수 있다
+ * @param {object} options
+ * @param {string} [options.date] YYYY-MM-DD. 지정하면 해당 날짜 건만 조회
+ * @param {number} [options.page] 1부터 시작
+ * @param {number} [options.pageSize]
+ */
+async function getChangeLogFeed(options = {}) {
+  const { date, page = 1, pageSize = DEFAULT_PAGE_SIZE } = options;
+
+  const safePageSize = Math.min(Math.max(Number(pageSize) || DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
+  const safePage = Math.max(Number(page) || 1, 1);
+
+  const query = {};
+  const range = buildDateRange(date);
+  if (range) {
+    query.createdAt = range;
+  }
+
+  const [total, logs] = await Promise.all([
+    ChangeLog.countDocuments(query),
+    ChangeLog.find(query)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((safePage - 1) * safePageSize)
+      .limit(safePageSize)
+      .lean(),
+  ]);
+
+  return {
+    items: logs.map(toChangeLogItem),
+    page: safePage,
+    pageSize: safePageSize,
+    total,
+    totalPages: Math.max(Math.ceil(total / safePageSize), 1),
+    date: range ? date : null,
+  };
+}
+
+/**
  * EP 파일별 공개 주소와 로컬 산출물 상태를 모은다.
  * - 로컬 dist에 파일이 없으면 주소만 제공한다
  */
@@ -138,6 +195,7 @@ async function getSummary() {
     productWithEpCount,
     futureProductCount,
     productMasterCount,
+    packageCount,
     latestCreated,
     latestUpdated,
     latestCollectJob,
@@ -149,6 +207,7 @@ async function getSummary() {
       departureDate: { $gte: today },
     }),
     ProductMaster.countDocuments({}),
+    Package.countDocuments({}),
     Product.findOne({}).sort({ createdAt: -1 }).select("createdAt").lean(),
     Product.findOne({}).sort({ updatedAt: -1 }).select("updatedAt").lean(),
     CronJob.findOne({ job: CRON_JOB_TYPES.PRODUCT_COLLECT }).sort({ created_at: -1 }).lean(),
@@ -161,6 +220,7 @@ async function getSummary() {
       // 오늘 이후 출발 = 실제 EP 파일에 실리는 모수
       epCandidates: futureProductCount,
       productMasters: productMasterCount,
+      packages: packageCount,
     },
     latestCollectedAt: latestCreated?.createdAt || null,
     latestUpdatedAt: latestUpdated?.updatedAt || null,
@@ -181,6 +241,7 @@ async function getSummary() {
 module.exports = {
   getSummary,
   getProductFeed,
+  getChangeLogFeed,
   getEpFiles,
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,

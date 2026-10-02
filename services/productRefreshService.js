@@ -5,6 +5,7 @@ const {
   fetchProductFromApi,
 } = require("./productScraperService");
 const { sanitizeTitle } = require("./scraperUtils");
+const { describeChanges, recordChange } = require("./changeLogService");
 
 /**
  * 재검증 시 최신값으로 덮어쓸 epData 필드.
@@ -28,20 +29,30 @@ const REFRESH_FIELDS = {
 /**
  * 하나라도 걸리면 상품을 DB에서 지우는 조건.
  * - 수집 단계와 같은 기준이다. 저장해 둘 이유가 없는 상품은 남기지 않는다
- * - 사유는 로그로만 남기고 DB에는 보관하지 않는다
+ * - 삭제 사유는 문서가 아니라 changeLogs에 한글로 남는다
  */
 const DROP_RULES = [
   {
     code: "soldout",
     test: (result) => getSoldoutFlags(result).length > 0,
-    detail: (result) => getSoldoutFlags(result).join(", "),
+    note: (result) => `판매 종료 (${getSoldoutFlags(result).join(", ")})`,
   },
   {
     code: "departed",
     test: (result) => isDeparted(result),
-    detail: (result) => `${result.departureDate} 출발`,
+    note: (result) => `출발일 경과 (${result.departureDate} 출발)`,
   },
 ];
+
+/**
+ * 값이 비어 있는지 본다.
+ * - 수집 단계는 쿠폰이 없으면 키 자체를 넣지 않아 undefined가 되는데,
+ *   재검증은 빈 문자열을 돌려준다. 이 둘을 다른 값으로 보면 매 실행마다
+ *   변경이 없는 상품까지 전부 바뀐 것으로 잡힌다.
+ */
+function isBlank(value) {
+  return value === undefined || value === null || value === "";
+}
 
 /**
  * 재검증 결과 바뀐 필드만 뽑는다.
@@ -53,8 +64,11 @@ function diffRefreshFields(result, epData) {
 
   for (const [field, extract] of Object.entries(REFRESH_FIELDS)) {
     const next = extract(result);
-    if (next !== previous[field]) {
-      changes[field] = { from: previous[field], to: next };
+    const before = previous[field];
+
+    if (isBlank(before) && isBlank(next)) continue;
+    if (next !== before) {
+      changes[field] = { from: before, to: next };
     }
   }
 
@@ -72,8 +86,16 @@ async function refreshProduct(doc) {
 
   const dropRule = DROP_RULES.find((rule) => rule.test(result));
   if (dropRule) {
+    const note = dropRule.note(result);
     await Product.deleteOne({ _id: doc._id });
-    return { status: "deleted", reason: `${dropRule.code}: ${dropRule.detail(result)}` };
+    await recordChange({
+      entity: "product",
+      documentId: doc._id,
+      refKey: doc.productNo,
+      action: "deleted",
+      note,
+    });
+    return { status: "deleted", note };
   }
 
   const changes = diffRefreshFields(result, doc.epData);
@@ -88,10 +110,21 @@ async function refreshProduct(doc) {
 
   await Product.updateOne({ _id: doc._id }, { $set: update });
 
-  return {
-    status: Object.keys(changes).length > 0 ? "changed" : "unchanged",
+  // 값이 그대로인 건은 기록하지 않는다. 전부 남기면 로그가 신호를 잃는다.
+  if (Object.keys(changes).length === 0) {
+    return { status: "unchanged", changes };
+  }
+
+  await recordChange({
+    entity: "product",
+    documentId: doc._id,
+    refKey: doc.productNo,
+    action: "updated",
+    note: describeChanges(changes),
     changes,
-  };
+  });
+
+  return { status: "changed", changes };
 }
 
 /**

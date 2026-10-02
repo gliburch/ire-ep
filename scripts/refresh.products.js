@@ -31,7 +31,7 @@ async function main() {
   const { total, results } = await refreshOldestProducts({
     limit,
     concurrency,
-    onItem: ({ current, total, doc, status, changes, reason, error }) => {
+    onItem: ({ current, total, doc, status, changes, note, error }) => {
       const prefix = `\x1b[35m[${current}/${total}]\x1b[0m`;
 
       if (status === "changed") {
@@ -40,7 +40,7 @@ async function main() {
           .join(", ");
         console.log(`${prefix} \x1b[33m[CHANGED]\x1b[0m ${doc.productNo} | ${summary}`);
       } else if (status === "deleted") {
-        console.log(`${prefix} \x1b[34m[DELETED]\x1b[0m ${doc.productNo} | ${reason}`);
+        console.log(`${prefix} \x1b[34m[DELETED]\x1b[0m ${doc.productNo} | ${note}`);
       } else if (status === "failed") {
         console.log(`${prefix} \x1b[31m[ERROR]\x1b[0m ${doc.productNo} | ${error?.message || "Unknown error"}`);
       } else {

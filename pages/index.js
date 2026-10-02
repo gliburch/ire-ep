@@ -3,6 +3,7 @@ const ejs = require("ejs");
 const {
   getSummary,
   getProductFeed,
+  getChangeLogFeed,
   DEFAULT_PAGE_SIZE,
 } = require("../services/dashboardService");
 
@@ -33,6 +34,16 @@ async function pagesPlugin(fastify) {
       sort: sort === "updated" ? "updated" : "created",
       date,
       page: page,
+      pageSize: pageSize || DEFAULT_PAGE_SIZE,
+    });
+  });
+
+  fastify.get("/api/dashboard/changes", async (request) => {
+    const { date, page, pageSize } = request.query;
+
+    return getChangeLogFeed({
+      date,
+      page,
       pageSize: pageSize || DEFAULT_PAGE_SIZE,
     });
   });

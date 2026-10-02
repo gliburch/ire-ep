@@ -65,96 +65,88 @@
   </head>
   <body class="h-full bg-canvas font-sans text-ink antialiased">
     <div class="flex h-full flex-col">
-      <!-- 개괄 정보 -->
-      <header class="shrink-0 border-b border-line bg-white px-4 pb-3 pt-4 md:px-6 md:pb-4 md:pt-5">
-        <div class="mx-auto flex w-full max-w-[1440px] flex-col gap-3 md:gap-4">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <h1 class="text-[20px] font-bold leading-tight tracking-tight md:text-[24px]">EP 수집 현황 대시보드</h1>
-              <p class="mt-1 text-[13px] text-ink-mute">
-                기준 시간대 <%= summary.timezone %> · 갱신
-                <span data-field="generatedAt"><%= formatDateTime(summary.generatedAt) %></span>
-              </p>
-            </div>
-            <button
-              type="button"
-              data-action="refresh-summary"
-              class="shrink-0 rounded-xl bg-line px-3.5 py-2 text-[13px] font-semibold text-ink-sub transition hover:bg-line-strong active:scale-[0.98]"
-            >
-              새로고침
-            </button>
-          </div>
-
-          <!-- 숫자 요약: 모바일은 가로 스크롤, 데스크톱은 그리드 -->
-          <div class="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar md:mx-0 md:grid md:grid-cols-4 md:gap-3 md:px-0">
-            <div class="min-w-[140px] rounded-2xl bg-canvas px-4 py-3 md:min-w-0">
-              <p class="text-[12px] font-medium text-ink-mute">전체 상품</p>
-              <p class="mt-1 text-[20px] font-bold tabular-nums" data-field="counts.products"><%= formatNumber(summary.counts.products) %></p>
-            </div>
-            <div class="min-w-[140px] rounded-2xl bg-canvas px-4 py-3 md:min-w-0">
-              <p class="text-[12px] font-medium text-ink-mute">EP 데이터 보유</p>
-              <p class="mt-1 text-[20px] font-bold tabular-nums" data-field="counts.productsWithEp"><%= formatNumber(summary.counts.productsWithEp) %></p>
-            </div>
-            <div class="min-w-[140px] rounded-2xl bg-brand-weak px-4 py-3 md:min-w-0">
-              <p class="text-[12px] font-medium text-brand-strong">EP 노출 대상</p>
-              <p class="mt-1 text-[20px] font-bold tabular-nums text-brand-strong" data-field="counts.epCandidates"><%= formatNumber(summary.counts.epCandidates) %></p>
-            </div>
-            <div class="min-w-[140px] rounded-2xl bg-canvas px-4 py-3 md:min-w-0">
-              <p class="text-[12px] font-medium text-ink-mute">마스터 상품</p>
-              <p class="mt-1 text-[20px] font-bold tabular-nums" data-field="counts.productMasters"><%= formatNumber(summary.counts.productMasters) %></p>
+      <!-- 개괄 정보: 목록에 자리를 내주려고 두 줄로 압축해 둔다 -->
+      <header class="shrink-0 border-b border-line bg-white px-4 py-2.5 md:px-6">
+        <div class="mx-auto flex w-full max-w-[1440px] flex-col gap-1.5">
+          <!-- 1행: 타이틀 · 핵심 수치 · 새로고침 -->
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <h1 class="text-[16px] font-bold leading-tight tracking-tight md:text-[17px]">EP 수집 현황</h1>
+            <p class="hidden text-[11px] text-ink-mute sm:block">
+              <%= summary.timezone %> · <span data-field="generatedAt"><%= formatDateTime(summary.generatedAt) %></span>
+            </p>
+            <div class="ml-auto flex items-center gap-1.5">
+              <span class="inline-flex items-baseline gap-1 rounded-lg bg-canvas px-2 py-1">
+                <span class="text-[11px] text-ink-mute">전체</span>
+                <span class="text-[13px] font-bold tabular-nums" data-field="counts.products"><%= formatNumber(summary.counts.products) %></span>
+              </span>
+              <span class="inline-flex items-baseline gap-1 rounded-lg bg-canvas px-2 py-1">
+                <span class="text-[11px] text-ink-mute">EP 보유</span>
+                <span class="text-[13px] font-bold tabular-nums" data-field="counts.productsWithEp"><%= formatNumber(summary.counts.productsWithEp) %></span>
+              </span>
+              <span class="inline-flex items-baseline gap-1 rounded-lg bg-brand-weak px-2 py-1">
+                <span class="text-[11px] text-brand-strong">노출 대상</span>
+                <span class="text-[13px] font-bold tabular-nums text-brand-strong" data-field="counts.epCandidates"><%= formatNumber(summary.counts.epCandidates) %></span>
+              </span>
+              <button
+                type="button"
+                data-action="refresh-summary"
+                class="shrink-0 rounded-lg bg-line px-2.5 py-1 text-[12px] font-semibold text-ink-sub transition hover:bg-line-strong active:scale-[0.98]"
+              >
+                새로고침
+              </button>
             </div>
           </div>
 
-          <div class="flex flex-col gap-2 md:flex-row md:items-stretch md:gap-3">
-            <!-- 운영 EP 주소 -->
-            <div class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
-              <div class="min-w-0 flex-1">
-                <p class="text-[12px] font-medium text-ink-mute"><%= epPrimary.label %></p>
-                <% if (epPrimary.url) { %>
-                  <a
-                    href="<%= epPrimary.url %>"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="block truncate text-[14px] font-semibold text-brand hover:text-brand-strong hover:underline"
-                  ><%= epPrimary.url %></a>
-                <% } else { %>
-                  <p class="text-[14px] font-semibold text-ink-mute">FTP_BASE_URL 미설정</p>
+          <!-- 2행: 콜렉션 건수 · EP 주소 · 최근 크론. 보조 정보라 한 줄 텍스트로 눕힌다 -->
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-mute">
+            <% const collectionCounts = [
+              { label: "product", field: "products", value: summary.counts.products },
+              { label: "masterProduct", field: "productMasters", value: summary.counts.productMasters },
+              { label: "package", field: "packages", value: summary.counts.packages },
+            ]; %>
+            <% collectionCounts.forEach((item) => { %>
+              <span class="inline-flex items-baseline gap-1">
+                <span class="font-mono"><%= item.label %></span>
+                <span class="font-bold tabular-nums text-ink-sub" data-field="counts.<%= item.field %>"><%= formatNumber(item.value) %></span>
+              </span>
+            <% }) %>
+
+            <span aria-hidden="true" class="text-line-strong">|</span>
+
+            <% if (epPrimary.url) { %>
+              <a
+                href="<%= epPrimary.url %>"
+                target="_blank"
+                rel="noreferrer"
+                class="max-w-[260px] truncate font-semibold text-brand hover:text-brand-strong hover:underline sm:max-w-none"
+              ><%= epPrimary.url %></a>
+              <button
+                type="button"
+                data-action="copy"
+                data-copy-value="<%= epPrimary.url %>"
+                class="shrink-0 rounded-md bg-brand-weak px-1.5 py-0.5 text-[11px] font-semibold text-brand-strong transition hover:bg-brand hover:text-white"
+              >
+                복사
+              </button>
+            <% } else { %>
+              <span class="font-semibold text-ink-mute">FTP_BASE_URL 미설정</span>
+            <% } %>
+            <span class="hidden sm:inline"><%= formatSize(epPrimary.localSize) %> · <%= formatDateTime(epPrimary.localModifiedAt) %></span>
+
+            <span aria-hidden="true" class="text-line-strong">|</span>
+
+            <% if (summary.latestCronJob) { %>
+              <span>
+                최근 <%= summary.latestCronJob.job %>
+                <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCronJob.ranAt) %></span>
+                <% if (summary.latestCronJob.startNo) { %>
+                  (<%= formatNumber(summary.latestCronJob.startNo) %>~<%= formatNumber(summary.latestCronJob.lastNo) %>)
                 <% } %>
-                <p class="mt-0.5 text-[12px] text-ink-mute">
-                  로컬 산출물 <%= formatSize(epPrimary.localSize) %> · <%= formatDateTime(epPrimary.localModifiedAt) %>
-                </p>
-              </div>
-              <% if (epPrimary.url) { %>
-                <button
-                  type="button"
-                  data-action="copy"
-                  data-copy-value="<%= epPrimary.url %>"
-                  class="shrink-0 rounded-xl bg-brand px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-brand-strong active:scale-[0.98]"
-                >
-                  복사
-                </button>
-              <% } %>
-            </div>
-
-            <!-- 최근 크론 작업 현황 -->
-            <div class="flex min-w-0 flex-1 flex-col justify-center rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
-              <% if (summary.latestCronJob) { %>
-                <p class="text-[12px] font-medium text-ink-mute">최근 <%= summary.latestCronJob.job %> 작업</p>
-                <p class="mt-1 text-[14px] font-semibold">
-                  <%= formatDateTime(summary.latestCronJob.ranAt) %>
-                </p>
-                <p class="mt-0.5 text-[12px] text-ink-mute">
-                  <% if (summary.latestCronJob.startNo) { %>
-                    <%= formatNumber(summary.latestCronJob.startNo) %> ~ <%= formatNumber(summary.latestCronJob.lastNo) %> ·
-                  <% } %>
-                  최근 수집 <%= formatDateTime(summary.latestCollectedAt) %>
-                </p>
-              <% } else { %>
-                <p class="text-[12px] font-medium text-ink-mute">최근 크론 작업</p>
-                <p class="mt-1 text-[14px] font-semibold text-ink-mute">기록 없음</p>
-                <p class="mt-0.5 text-[12px] text-ink-mute">최근 수집 <%= formatDateTime(summary.latestCollectedAt) %></p>
-              <% } %>
-            </div>
+              </span>
+            <% } else { %>
+              <span>최근 크론 <span class="font-semibold text-ink-sub">기록 없음</span></span>
+            <% } %>
+            <span>· 최근 수집 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCollectedAt) %></span></span>
           </div>
         </div>
       </header>
@@ -188,7 +180,7 @@
         <%
           const panels = [
             { key: "created", title: "최근 수집", caption: "createdAt 기준 최신순", dateLabel: "수집일" },
-            { key: "updated", title: "최근 업데이트", caption: "updatedAt 기준 최신순", dateLabel: "업데이트일" },
+            { key: "updated", title: "최근 업데이트", caption: "수정·삭제 기록 최신순", dateLabel: "변경일", table: true },
           ];
         %>
         <% panels.forEach((panel, index) => { %>
@@ -222,10 +214,29 @@
             </div>
 
             <!-- 패널 바디 (스크롤) -->
-            <div data-role="body" class="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-slim">
-              <div data-role="list" class="divide-y divide-line"></div>
-              <p data-role="state" class="px-4 py-10 text-center text-[13px] text-ink-mute">불러오는 중…</p>
-            </div>
+            <% if (panel.table) { %>
+              <!-- 표는 컬럼이 많아 가로로도 스크롤된다 -->
+              <div data-role="body" class="min-h-0 flex-1 overflow-auto overscroll-contain scrollbar-slim">
+                <table class="w-full min-w-[640px] border-collapse text-left text-[12px]">
+                  <thead class="sticky top-0 z-10 bg-canvas text-[11px] font-semibold text-ink-mute">
+                    <tr>
+                      <th class="whitespace-nowrap px-3 py-2 font-semibold">시각</th>
+                      <th class="whitespace-nowrap px-2 py-2 font-semibold">구분</th>
+                      <th class="whitespace-nowrap px-2 py-2 font-semibold">상품번호</th>
+                      <th class="whitespace-nowrap px-2 py-2 font-semibold">내용</th>
+                      <th class="whitespace-nowrap px-3 py-2 font-semibold">changes</th>
+                    </tr>
+                  </thead>
+                  <tbody data-role="list" class="divide-y divide-line align-top"></tbody>
+                </table>
+                <p data-role="state" class="px-4 py-10 text-center text-[13px] text-ink-mute">불러오는 중…</p>
+              </div>
+            <% } else { %>
+              <div data-role="body" class="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-slim">
+                <div data-role="list" class="divide-y divide-line"></div>
+                <p data-role="state" class="px-4 py-10 text-center text-[13px] text-ink-mute">불러오는 중…</p>
+              </div>
+            <% } %>
 
             <!-- 패널 푸터 (페이지네이션) -->
             <div class="flex shrink-0 items-center justify-between gap-2 border-t border-line px-4 py-3">
@@ -370,11 +381,72 @@
           );
         }
 
+        // 구분 배지 색. 삭제는 되돌릴 수 없으니 눈에 띄게 둔다.
+        var ACTION_STYLES = {
+          updated: { label: "수정", className: "bg-brand-weak text-brand-strong" },
+          deleted: { label: "삭제", className: "bg-rose-100 text-rose-700" },
+        };
+
+        // 상품 상세는 productNo로 바로 열린다.
+        // 마스터/패키지는 주소 규칙이 달라 링크를 걸지 않는다.
+        var PRODUCT_DETAIL_BASE = "https://ire.modetour.co.kr/package/";
+
+        /**
+         * 변경 기록 한 줄의 표 마크업.
+         * - changes는 가공하지 않고 JSON 그대로 노출한다
+         * - 상품번호는 실제 판매 페이지로 바로 확인할 수 있게 새 창 링크를 건다
+         */
+        function renderChangeRow(item) {
+          var action = ACTION_STYLES[item.action] || { label: item.action, className: "bg-line text-ink-sub" };
+          var changesJson = item.changes ? JSON.stringify(item.changes) : "";
+          var refLabel = "#" + escapeHtml(item.refKey);
+          var refNode =
+            item.entity === "product"
+              ? '<a href="' +
+                PRODUCT_DETAIL_BASE +
+                encodeURIComponent(item.refKey) +
+                '" target="_blank" rel="noreferrer" class="text-brand hover:text-brand-strong hover:underline">' +
+                refLabel +
+                "</a>"
+              : refLabel;
+
+          return (
+            '<tr class="transition hover:bg-canvas">' +
+            '<td class="whitespace-nowrap px-3 py-2 tabular-nums text-ink-mute">' +
+            formatDateTime(item.createdAt) +
+            "</td>" +
+            '<td class="whitespace-nowrap px-2 py-2">' +
+            '<span class="inline-flex rounded-lg px-2 py-0.5 text-[11px] font-semibold ' +
+            action.className +
+            '">' +
+            escapeHtml(action.label) +
+            "</span>" +
+            "</td>" +
+            '<td class="whitespace-nowrap px-2 py-2 font-medium tabular-nums text-ink-sub">' +
+            refNode +
+            "</td>" +
+            '<td class="px-2 py-2 text-ink">' +
+            escapeHtml(item.note) +
+            "</td>" +
+            '<td class="px-3 py-2">' +
+            (changesJson
+              ? '<code class="block max-w-[320px] break-all font-mono text-[11px] leading-relaxed text-ink-mute">' +
+                escapeHtml(changesJson) +
+                "</code>"
+              : '<span class="text-ink-mute">-</span>') +
+            "</td>" +
+            "</tr>"
+          );
+        }
+
         /**
          * 목록 패널 하나를 제어한다. (조회 / 날짜 필터 / 페이지네이션)
          */
         function createPanel(section) {
           var sortKey = section.dataset.panel === "updated" ? "updated" : "created";
+          // 업데이트 패널은 Product가 아니라 변경 기록(changeLogs)을 본다.
+          // 삭제된 상품은 Product에 남지 않아 변경 내역을 여기서만 볼 수 있다.
+          var isChangeLog = sortKey === "updated";
           var listElement = section.querySelector('[data-role="list"]');
           var stateElement = section.querySelector('[data-role="state"]');
           var bodyElement = section.querySelector('[data-role="body"]');
@@ -402,12 +474,12 @@
 
           function buildUrl() {
             var params = new URLSearchParams({
-              sort: sortKey,
               page: String(page),
               pageSize: String(PAGE_SIZE),
             });
+            if (!isChangeLog) params.set("sort", sortKey);
             if (dateInput.value) params.set("date", dateInput.value);
-            return "/api/dashboard/feed?" + params.toString();
+            return (isChangeLog ? "/api/dashboard/changes?" : "/api/dashboard/feed?") + params.toString();
           }
 
           async function load() {
@@ -431,11 +503,17 @@
 
               listElement.innerHTML = data.items
                 .map(function (item) {
-                  return renderItem(item, sortKey);
+                  return isChangeLog ? renderChangeRow(item) : renderItem(item, sortKey);
                 })
                 .join("");
 
-              setState(data.items.length ? "" : "조건에 맞는 상품이 없습니다.");
+              setState(
+                data.items.length
+                  ? ""
+                  : isChangeLog
+                    ? "조건에 맞는 변경 기록이 없습니다."
+                    : "조건에 맞는 상품이 없습니다.",
+              );
               bodyElement.scrollTop = 0;
 
               prevButton.disabled = data.page <= 1;
@@ -443,7 +521,10 @@
             } catch (error) {
               if (currentRequest !== requestId) return;
               listElement.innerHTML = "";
-              setState("목록을 불러오지 못했습니다. (" + error.message + ")");
+              setState(
+                (isChangeLog ? "변경 기록을" : "목록을") +
+                  " 불러오지 못했습니다. (" + error.message + ")",
+              );
               prevButton.disabled = page <= 1;
               nextButton.disabled = false;
             }
