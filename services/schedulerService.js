@@ -3,11 +3,22 @@ const Product = require("../models/Product");
 const CronJob = require("../models/CronJob");
 const { CRON_JOB_TYPES } = CronJob;
 const { scrapeProducts } = require("./productScraperService");
+const { getProductMasterSearchTargets } = require("./searchTargetService");
+const { scrapeAllProductMasters } = require("./productMasterScraperService");
 const { generateProductEpFile } = require("./epService");
 const { uploadEpFileToFtp } = require("./ftpService");
 
 // 크론 1회가 수집할 상품 개수.
 const BATCH_SIZE = 200;
+
+// ProductMaster 수집은 전체 검색 대상을 이 개수로 나눠 크론별로 한 조각씩 맡는다.
+// vercel.json에 걸린 collect-product-master 크론 개수와 같아야 한다.
+const PRODUCT_MASTER_BATCH_COUNT = 5;
+
+// 몇 번째 조각을 맡을지는 "이 시간 창 안에서 이미 몇 번 돌았는지"로 센다.
+// 크론 5개가 한 시간 안에 모여 있고 하루 1회씩이므로, 이 창 안의 기록은
+// 오늘 것만 잡히고 어제 것은 섞이지 않는다.
+const PRODUCT_MASTER_BATCH_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 // Vercel 함수 실행 한도(vercel.json의 maxDuration과 같은 값).
 const FUNCTION_LIMIT_MS = 300_000;
@@ -87,11 +98,11 @@ async function publishProductEpFile(logger = console) {
 }
 
 /**
- * 크론 1회 분량의 "수집" 작업을 수행한다(상품 수집 + EP 생성).
+ * 크론 1회 분량의 "Product 수집" 작업을 수행한다(상품 수집 + EP 생성).
  * - 수집 범위: DB의 최대 productNo 다음 번호부터 batchSize개
  * - 수집이 중단되거나 실패해도 EP 생성·업로드는 항상 시도한다
  */
-async function runCollectJob(logger = console, options = {}) {
+async function runProductCollectJob(logger = console, options = {}) {
   const {
     batchSize = BATCH_SIZE,
     timeBudgetMs = TIME_BUDGET_MS,
@@ -184,8 +195,126 @@ async function runCollectJob(logger = console, options = {}) {
   return summary;
 }
 
+/**
+ * ProductMaster 수집 창(window)을 만든다.
+ * - 오늘부터 1년 뒤까지의 출발일 구간을 본다
+ */
+function getProductMasterWindow() {
+  const today = new Date();
+  const nextYear = new Date(today);
+  nextYear.setFullYear(nextYear.getFullYear() + 1);
+
+  return {
+    startDate: today.toISOString().split("T")[0],
+    endDate: nextYear.toISOString().split("T")[0],
+  };
+}
+
+/**
+ * 전체 검색 대상 중 이 배치가 맡을 구간만 잘라낸다.
+ */
+function sliceSearchTargetsForBatch(searchTargets, batchIndex) {
+  const normalizedIndex = Math.max(
+    0,
+    Math.min(batchIndex, PRODUCT_MASTER_BATCH_COUNT - 1),
+  );
+  const sliceSize = Math.ceil(searchTargets.length / PRODUCT_MASTER_BATCH_COUNT);
+  const start = normalizedIndex * sliceSize;
+
+  return {
+    allTargets: searchTargets.length,
+    sliceSize,
+    targets: searchTargets.slice(start, start + sliceSize),
+  };
+}
+
+/**
+ * 이번 실행이 맡을 조각 번호를 정한다.
+ * - 배치 번호를 경로로 받지 않고, 최근 시간 창에서 몇 번째 실행인지로 센다
+ * - 조각끼리는 대등하므로 어떤 실행이 몇 번을 맡든 결과는 같다
+ */
+async function resolveProductMasterBatchIndex() {
+  const since = new Date(Date.now() - PRODUCT_MASTER_BATCH_WINDOW_MS);
+  const ranInWindow = await CronJob.countDocuments({
+    job: CRON_JOB_TYPES.PRODUCT_MASTER_COLLECT,
+    created_at: { $gte: since },
+  });
+
+  return ranInWindow % PRODUCT_MASTER_BATCH_COUNT;
+}
+
+/**
+ * 크론 1회 분량의 "ProductMaster 수집" 작업을 수행한다.
+ * - 검색 대상을 PRODUCT_MASTER_BATCH_COUNT개로 나눈 중 한 조각만 맡는다
+ * - EP 파일은 만들지 않는다. EP는 Product 수집 작업이 전담한다
+ * @param {object} [options.batchIndex] 조각 번호를 직접 지정(수동 실행용)
+ */
+async function runProductMasterCollectJob(logger = console, options = {}) {
+  const batchIndex = Number.isInteger(options.batchIndex)
+    ? options.batchIndex
+    : await resolveProductMasterBatchIndex();
+
+  const { startDate, endDate } = getProductMasterWindow();
+  const searchTargets = await getProductMasterSearchTargets();
+  const { targets, allTargets, sliceSize } = sliceSearchTargetsForBatch(
+    searchTargets,
+    batchIndex,
+  );
+
+  const run = await CronJob.create({ job: CRON_JOB_TYPES.PRODUCT_MASTER_COLLECT });
+
+  logger.info?.(
+    {
+      cronJobId: String(run._id),
+      batchIndex,
+      batchCount: PRODUCT_MASTER_BATCH_COUNT,
+      targets: targets.length,
+      allTargets,
+      sliceSize,
+      startDate,
+      endDate,
+    },
+    "ProductMaster 수집 시작",
+  );
+
+  const results = await scrapeAllProductMasters(targets, startDate, endDate, {
+    delayMs: 100,
+    onProgress: ({ current, total, target, created, updated, failed }) => {
+      logger.info?.(
+        {
+          batchIndex,
+          current,
+          total,
+          type: target?.type,
+          target: target?.name || target?.areaNo || target?.themeNo,
+          created,
+          updated,
+          failed,
+        },
+        "ProductMaster 수집 진행",
+      );
+    },
+  });
+
+  const summary = {
+    skipped: false,
+    job: CRON_JOB_TYPES.PRODUCT_MASTER_COLLECT,
+    cronJobId: String(run._id),
+    batchIndex,
+    batchCount: PRODUCT_MASTER_BATCH_COUNT,
+    targetCount: targets.length,
+    results,
+  };
+
+  logger.info?.(summary, "ProductMaster 수집 완료");
+
+  return summary;
+}
+
 module.exports = {
   resolveNextStartNo,
   publishProductEpFile,
-  runCollectJob,
+  runProductCollectJob,
+  resolveProductMasterBatchIndex,
+  runProductMasterCollectJob,
 };

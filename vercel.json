@@ -2,28 +2,51 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/collect",
+      "path": "/api/cron/collect-product",
       "schedule": "0 4 * * *"
     },
     {
-      "path": "/api/cron/collect",
+      "path": "/api/cron/collect-product",
       "schedule": "5 4 * * *"
     },
     {
-      "path": "/api/cron/collect",
+      "path": "/api/cron/collect-product",
       "schedule": "10 4 * * *"
     },
     {
-      "path": "/api/cron/collect",
+      "path": "/api/cron/collect-product",
       "schedule": "15 4 * * *"
     },
     {
-      "path": "/api/cron/collect",
+      "path": "/api/cron/collect-product",
       "schedule": "20 4 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product-master",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product-master",
+      "schedule": "5 14 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product-master",
+      "schedule": "10 14 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product-master",
+      "schedule": "15 14 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product-master",
+      "schedule": "20 14 * * *"
     }
   ],
   "functions": {
-    "api/cron/collect.js": {
+    "api/cron/collect-product.js": {
+      "maxDuration": 300
+    },
+    "api/cron/collect-product-master.js": {
       "maxDuration": 300
     }
   }

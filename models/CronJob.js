@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const CRON_JOB_TYPES = {
   PRODUCT_COLLECT: "Product 수집",
   PRODUCT_CHANGE_TRACK: "Product 변경 추적",
+  PRODUCT_MASTER_COLLECT: "ProductMaster 수집",
 };
 
 /**
