@@ -18,12 +18,7 @@ const REFRESH_FIELDS = {
   price_pc: (result) => result.benefitPriceInfo?.price || 1,
   benefit_price: (result) => result.benefitPriceInfo?.discountPrice || 1,
   normal_price: (result) => result.productPriceAdultTotalAmount || 1,
-  title: (result) =>
-    sanitizeTitle(
-      result.departureDate
-        ? `${result.productName || ""} ${result.departureDate} 출발`
-        : result.productName || "",
-    ),
+  title: (result) => sanitizeTitle(result.productName || ""),
   coupon: (result) => (result.badges?.existsCoupon ? "Y" : ""),
 };
 

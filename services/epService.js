@@ -1,5 +1,6 @@
 const ProductMaster = require("../models/ProductMaster");
 const { getTitleOverrides } = require("./titleOverrideService");
+const { appendDepartureSuffix } = require("./scraperUtils");
 const Product = require("../models/Product");
 const Package = require("../models/Package");
 
@@ -187,13 +188,17 @@ async function collectProductEpData(options = {}) {
     query.departureDate = { $gte: today };
   }
 
-  const products = await Product.find(query, { epData: 1, _id: 0 }).lean();
+  const products = await Product.find(query, { epData: 1, departureDate: 1, _id: 0 }).lean();
 
   const epDataList = [];
 
   for (const product of products) {
     if (!product.epData) continue;
-    epDataList.push(product.epData);
+    // 제목 조립 순서: sanitizeTitle(수집) → 출발일 접미사(여기) → 제목 덮어쓰기(buildEpFileContent)
+    epDataList.push({
+      ...product.epData,
+      title: appendDepartureSuffix(product.epData.title, product.departureDate),
+    });
   }
 
   return epDataList;

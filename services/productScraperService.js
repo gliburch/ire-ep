@@ -162,11 +162,7 @@ async function buildProductEpData(result, options = {}) {
 
   return {
     id: sanitizeId(rawId),
-    title: sanitizeTitle(
-      data.departureDate
-        ? `${data.productName || ""} ${data.departureDate} 출발`
-        : data.productName || "",
-    ),
+    title: sanitizeTitle(data.productName || ""),
     price_pc: data.benefitPriceInfo?.price || 1,
     benefit_price: data.benefitPriceInfo?.discountPrice || 1,
     normal_price: data.productPriceAdultTotalAmount || 1,

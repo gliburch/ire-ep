@@ -148,6 +148,19 @@ EP 생성 시에도 **출발일이 오늘 이후인 상품만** 포함한다. �
 - 추적 키는 `documentId`가 아니라 `refKey`(`productNo` / `masterCode`)다.
   문서가 삭제되면 `documentId`는 가리킬 대상이 없어진다.
 
+## 제목 조립 순서
+
+DB에는 제목만 저장하고, 나머지는 EP 생성 시점에 얹는다.
+
+1. **`sanitizeTitle`** (수집/재검증) — 정제한 제목만 `epData.title`에 저장
+2. **출발일 접미사** (EP 생성) — `… | 2026년 10월 3일 출발`. `collectProductEpData`
+3. **제목 덮어쓰기 시트** (EP 생성) — title을 통째로 교체. `buildEpFileContent`
+
+- 접미사는 `sanitizeTitle` 이후에만 붙일 수 있다. 정제가 `|`와 날짜 구분자를 공백으로 바꾼다.
+- 100자를 넘으면 제목 쪽이 잘리고 접미사가 남는다.
+- 시트 제목에는 출발일이 붙지 않는다(3단계가 마지막). 필요하면 시트 값에 직접 적는다.
+- `ProductMaster`/`Package` EP에는 접미사가 없다. 출발일 단위 문서가 아니다.
+
 ## 자동 배치 (Vercel Cron)
 
 스케줄은 UTC 기준, 모든 엔드포인트가 `Authorization: Bearer <CRON_SECRET>`을 요구한다.
