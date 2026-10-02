@@ -102,7 +102,7 @@
               { label: "package", field: "packages", value: summary.counts.packages },
             ]; %>
             <% collectionCounts.forEach((item) => { %>
-              <span class="inline-flex items-baseline gap-1">
+              <span class="inline-flex items-baseline gap-1 whitespace-nowrap">
                 <span class="font-mono"><%= item.label %></span>
                 <span class="font-bold tabular-nums text-ink-sub" data-field="counts.<%= item.field %>"><%= formatNumber(item.value) %></span>
               </span>
@@ -110,7 +110,7 @@
 
             <span aria-hidden="true" class="text-line-strong">|</span>
             <% if (summary.latestCronJob) { %>
-              <span>
+              <span class="whitespace-nowrap">
                 크론 <%= summary.latestCronJob.job %>
                 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCronJob.ranAt) %></span>
                 <% if (summary.latestCronJob.startNo) { %>
@@ -118,15 +118,15 @@
                 <% } %>
               </span>
             <% } else { %>
-              <span>크론 <span class="font-semibold text-ink-sub">기록 없음</span></span>
+              <span class="whitespace-nowrap">크론 <span class="font-semibold text-ink-sub">기록 없음</span></span>
             <% } %>
-            <span>· 최근 등록 상품 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCollectedAt) %></span></span>
+            <span class="whitespace-nowrap">최근 등록 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCollectedAt) %></span></span>
           </div>
 
           <!-- 3행: EP 주소. 복사해 쓰는 값이라 한 줄씩 떼어 둔다 -->
           <div class="flex flex-col gap-1.5 text-[12px] text-ink-mute">
-            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span class="w-[52px] shrink-0 font-semibold text-ink-sub">이레투어</span>
+            <div class="flex min-w-0 items-center gap-x-2">
+              <span class="shrink-0 font-semibold text-ink-sub">이레투어</span>
               <% if (epPrimary.url) { %>
                 <a
                   href="<%= epPrimary.url %>"
@@ -147,8 +147,8 @@
               <% } %>
             </div>
 
-            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span class="w-[52px] shrink-0 font-semibold text-ink-sub">모두투어</span>
+            <div class="flex min-w-0 items-center gap-x-2">
+              <span class="shrink-0 font-semibold text-ink-sub">모두투어</span>
               <a
                 href="<%= MODETOUR_EP_URL %>"
                 target="_blank"
