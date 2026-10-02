@@ -111,22 +111,22 @@
             <span aria-hidden="true" class="text-line-strong">|</span>
             <% if (summary.latestCronJob) { %>
               <span>
-                최근 <%= summary.latestCronJob.job %>
+                크론 <%= summary.latestCronJob.job %>
                 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCronJob.ranAt) %></span>
                 <% if (summary.latestCronJob.startNo) { %>
                   (<%= formatNumber(summary.latestCronJob.startNo) %>~<%= formatNumber(summary.latestCronJob.lastNo) %>)
                 <% } %>
               </span>
             <% } else { %>
-              <span>최근 크론 <span class="font-semibold text-ink-sub">기록 없음</span></span>
+              <span>크론 <span class="font-semibold text-ink-sub">기록 없음</span></span>
             <% } %>
-            <span>· 최근 수집 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCollectedAt) %></span></span>
+            <span>· 최근 등록 상품 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCollectedAt) %></span></span>
           </div>
 
           <!-- 3행: EP 주소. 복사해 쓰는 값이라 한 줄씩 떼어 둔다 -->
           <div class="flex flex-col gap-1.5 text-[12px] text-ink-mute">
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span class="w-[52px] shrink-0 font-semibold text-ink-sub">우리</span>
+              <span class="w-[52px] shrink-0 font-semibold text-ink-sub">이레투어</span>
               <% if (epPrimary.url) { %>
                 <a
                   href="<%= epPrimary.url %>"
