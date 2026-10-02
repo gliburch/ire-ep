@@ -63,8 +63,8 @@
   <body class="h-full bg-canvas font-sans text-ink antialiased">
     <div class="flex h-full flex-col">
       <!-- 개괄 정보: 목록에 자리를 내주려고 두 줄로 압축해 둔다 -->
-      <header class="shrink-0 border-b border-line bg-white px-4 py-4 md:px-6">
-        <div class="mx-auto flex w-full max-w-[1440px] flex-col gap-2.5">
+      <header class="shrink-0 border-b border-line bg-white px-4 py-2.5 md:px-6 md:py-4">
+        <div class="mx-auto flex w-full max-w-[1440px] flex-col gap-1.5 md:gap-2.5">
           <!-- 1행: 타이틀 · 핵심 수치 · 새로고침 -->
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <h1 class="text-[18px] font-bold leading-tight tracking-tight md:text-[20px]">EP 수집 현황</h1>
@@ -94,8 +94,8 @@
             </div>
           </div>
 
-          <!-- 2행: 콜렉션 건수 · 최근 크론. 보조 정보라 한 줄 텍스트로 눕힌다 -->
-          <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-ink-mute">
+          <!-- 2행: 콜렉션 건수 · 최근 크론. 보조 정보라 모바일에서는 접는다 -->
+          <div class="hidden flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-ink-mute sm:flex">
             <% const collectionCounts = [
               { label: "product", field: "products", value: summary.counts.products },
               { label: "masterProduct", field: "productMasters", value: summary.counts.productMasters },
@@ -147,7 +147,7 @@
               <% } %>
             </div>
 
-            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div class="hidden flex-wrap items-center gap-x-2 gap-y-1 sm:flex">
               <span class="w-[52px] shrink-0 font-semibold text-ink-sub">모두투어</span>
               <a
                 href="<%= MODETOUR_EP_URL %>"
@@ -170,7 +170,7 @@
 
       <!-- 모바일 전환 탭 -->
       <nav class="sticky top-0 z-20 shrink-0 border-b border-line bg-white/95 px-4 backdrop-blur md:hidden">
-        <div class="flex gap-1 py-2" role="tablist">
+        <div class="flex gap-1 py-1.5" role="tablist">
           <button
             type="button"
             role="tab"
@@ -206,7 +206,7 @@
             class="flex min-h-0 w-full flex-1 flex-col bg-white md:w-1/2 md:rounded-2xl md:border md:border-line md:shadow-card <%= index === 1 ? 'hidden md:flex' : '' %>"
           >
             <!-- 패널 헤더 -->
-            <div class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3">
+            <div class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-2 md:py-3">
               <div class="mr-auto">
                 <h2 class="text-[16px] font-bold"><%= panel.title %></h2>
                 <p class="text-[12px] text-ink-mute">
