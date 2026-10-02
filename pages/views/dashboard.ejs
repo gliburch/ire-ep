@@ -479,7 +479,7 @@
             });
             if (!isChangeLog) params.set("sort", sortKey);
             if (dateInput.value) params.set("date", dateInput.value);
-            return (isChangeLog ? "/api/dashboard/changes?" : "/api/dashboard/feed?") + params.toString();
+            return (isChangeLog ? "/http-api/dashboard/changes?" : "/http-api/dashboard/feed?") + params.toString();
           }
 
           async function load() {
@@ -597,7 +597,7 @@
             refreshButton.textContent = "갱신 중…";
 
             try {
-              var response = await fetch("/api/dashboard/summary", { headers: { Accept: "application/json" } });
+              var response = await fetch("/http-api/dashboard/summary", { headers: { Accept: "application/json" } });
               if (!response.ok) throw new Error("HTTP " + response.status);
               var summary = await response.json();
 

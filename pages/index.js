@@ -23,11 +23,11 @@ async function pagesPlugin(fastify) {
     return reply.view("dashboard", { summary });
   });
 
-  fastify.get("/api/dashboard/summary", async () => {
+  fastify.get("/http-api/dashboard/summary", async () => {
     return getSummary();
   });
 
-  fastify.get("/api/dashboard/feed", async (request) => {
+  fastify.get("/http-api/dashboard/feed", async (request) => {
     const { sort, date, page, pageSize } = request.query;
 
     return getProductFeed({
@@ -38,7 +38,7 @@ async function pagesPlugin(fastify) {
     });
   });
 
-  fastify.get("/api/dashboard/changes", async (request) => {
+  fastify.get("/http-api/dashboard/changes", async (request) => {
     const { date, page, pageSize } = request.query;
 
     return getChangeLogFeed({
