@@ -1,0 +1,554 @@
+<%
+  // 서버 첫 렌더에서 쓰는 표시 포맷터. 클라이언트 갱신 시에는 dashboard.js의 동일 포맷터를 쓴다.
+  const formatNumber = (value) => (value ?? 0).toLocaleString("ko-KR");
+  const formatDateTime = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleString("ko-KR", {
+      timeZone: summary.timezone,
+      year: "2-digit",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+  const formatSize = (bytes) => {
+    if (bytes === null || bytes === undefined) return "로컬 파일 없음";
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+  };
+  const epPrimary = summary.epFiles[0];
+%>
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>EP 수집 현황 대시보드</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: { DEFAULT: "#3182F6", strong: "#1B64DA", weak: "#E8F3FF" },
+              ink: { DEFAULT: "#191F28", sub: "#4E5968", mute: "#8B95A1" },
+              line: { DEFAULT: "#F2F4F6", strong: "#E5E8EB" },
+              canvas: "#F9FAFB",
+              positive: "#00A05B",
+              negative: "#F04452",
+            },
+            fontFamily: {
+              sans: ["Pretendard Variable", "Pretendard", "system-ui", "sans-serif"],
+            },
+            boxShadow: {
+              card: "0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04)",
+            },
+          },
+        },
+      };
+    </script>
+    <style type="text/tailwindcss">
+      @layer utilities {
+        .scrollbar-slim::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-slim::-webkit-scrollbar-thumb { background: #D1D6DB; border-radius: 9999px; }
+        .scrollbar-slim::-webkit-scrollbar-track { background: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+      }
+    </style>
+  </head>
+  <body class="h-full bg-canvas font-sans text-ink antialiased">
+    <div class="flex h-full flex-col">
+      <!-- 개괄 정보 -->
+      <header class="shrink-0 border-b border-line bg-white px-4 pb-3 pt-4 md:px-6 md:pb-4 md:pt-5">
+        <div class="mx-auto flex w-full max-w-[1440px] flex-col gap-3 md:gap-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h1 class="text-[20px] font-bold leading-tight tracking-tight md:text-[24px]">EP 수집 현황 대시보드</h1>
+              <p class="mt-1 text-[13px] text-ink-mute">
+                기준 시간대 <%= summary.timezone %> · 갱신
+                <span data-field="generatedAt"><%= formatDateTime(summary.generatedAt) %></span>
+              </p>
+            </div>
+            <button
+              type="button"
+              data-action="refresh-summary"
+              class="shrink-0 rounded-xl bg-line px-3.5 py-2 text-[13px] font-semibold text-ink-sub transition hover:bg-line-strong active:scale-[0.98]"
+            >
+              새로고침
+            </button>
+          </div>
+
+          <!-- 숫자 요약: 모바일은 가로 스크롤, 데스크톱은 그리드 -->
+          <div class="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar md:mx-0 md:grid md:grid-cols-4 md:gap-3 md:px-0">
+            <div class="min-w-[140px] rounded-2xl bg-canvas px-4 py-3 md:min-w-0">
+              <p class="text-[12px] font-medium text-ink-mute">전체 상품</p>
+              <p class="mt-1 text-[20px] font-bold tabular-nums" data-field="counts.products"><%= formatNumber(summary.counts.products) %></p>
+            </div>
+            <div class="min-w-[140px] rounded-2xl bg-canvas px-4 py-3 md:min-w-0">
+              <p class="text-[12px] font-medium text-ink-mute">EP 데이터 보유</p>
+              <p class="mt-1 text-[20px] font-bold tabular-nums" data-field="counts.productsWithEp"><%= formatNumber(summary.counts.productsWithEp) %></p>
+            </div>
+            <div class="min-w-[140px] rounded-2xl bg-brand-weak px-4 py-3 md:min-w-0">
+              <p class="text-[12px] font-medium text-brand-strong">EP 노출 대상</p>
+              <p class="mt-1 text-[20px] font-bold tabular-nums text-brand-strong" data-field="counts.epCandidates"><%= formatNumber(summary.counts.epCandidates) %></p>
+            </div>
+            <div class="min-w-[140px] rounded-2xl bg-canvas px-4 py-3 md:min-w-0">
+              <p class="text-[12px] font-medium text-ink-mute">마스터 상품</p>
+              <p class="mt-1 text-[20px] font-bold tabular-nums" data-field="counts.productMasters"><%= formatNumber(summary.counts.productMasters) %></p>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-2 md:flex-row md:items-stretch md:gap-3">
+            <!-- 운영 EP 주소 -->
+            <div class="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
+              <div class="min-w-0 flex-1">
+                <p class="text-[12px] font-medium text-ink-mute"><%= epPrimary.label %></p>
+                <% if (epPrimary.url) { %>
+                  <a
+                    href="<%= epPrimary.url %>"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="block truncate text-[14px] font-semibold text-brand hover:text-brand-strong hover:underline"
+                  ><%= epPrimary.url %></a>
+                <% } else { %>
+                  <p class="text-[14px] font-semibold text-ink-mute">FTP_BASE_URL 미설정</p>
+                <% } %>
+                <p class="mt-0.5 text-[12px] text-ink-mute">
+                  로컬 산출물 <%= formatSize(epPrimary.localSize) %> · <%= formatDateTime(epPrimary.localModifiedAt) %>
+                </p>
+              </div>
+              <% if (epPrimary.url) { %>
+                <button
+                  type="button"
+                  data-action="copy"
+                  data-copy-value="<%= epPrimary.url %>"
+                  class="shrink-0 rounded-xl bg-brand px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-brand-strong active:scale-[0.98]"
+                >
+                  복사
+                </button>
+              <% } %>
+            </div>
+
+            <!-- 최근 배치 현황 -->
+            <div class="flex min-w-0 flex-1 flex-col justify-center rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
+              <% if (summary.dailyBatch) { %>
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-[12px] font-medium text-ink-mute">최근 배치 <%= summary.dailyBatch.dateKey %></p>
+                  <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold <%= summary.dailyBatch.finalizedAt ? 'bg-brand-weak text-brand-strong' : 'bg-line text-ink-sub' %>">
+                    <%= summary.dailyBatch.finalizedAt ? '마감 완료' : '진행 중' %>
+                  </span>
+                </div>
+                <p class="mt-1 text-[14px] font-semibold tabular-nums">
+                  신규 <%= formatNumber(summary.dailyBatch.stats.created) %>
+                  <span class="text-ink-mute">·</span>
+                  갱신 <%= formatNumber(summary.dailyBatch.stats.updated) %>
+                  <span class="text-ink-mute">·</span>
+                  <span class="<%= summary.dailyBatch.stats.failed ? 'text-negative' : '' %>">실패 <%= formatNumber(summary.dailyBatch.stats.failed) %></span>
+                </p>
+                <p class="mt-0.5 text-[12px] text-ink-mute">
+                  배치 <%= summary.dailyBatch.completedBatches %>개 완료 · 최근 수집 <%= formatDateTime(summary.latestCollectedAt) %>
+                </p>
+              <% } else { %>
+                <p class="text-[12px] font-medium text-ink-mute">최근 배치</p>
+                <p class="mt-1 text-[14px] font-semibold text-ink-mute">기록 없음</p>
+                <p class="mt-0.5 text-[12px] text-ink-mute">최근 수집 <%= formatDateTime(summary.latestCollectedAt) %></p>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- 모바일 전환 탭 -->
+      <nav class="sticky top-0 z-20 shrink-0 border-b border-line bg-white/95 px-4 backdrop-blur md:hidden">
+        <div class="flex gap-1 py-2" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            data-tab="created"
+            aria-selected="true"
+            class="flex-1 rounded-xl px-3 py-2 text-[14px] font-semibold transition aria-selected:bg-brand-weak aria-selected:text-brand-strong text-ink-mute"
+          >
+            최근 수집
+          </button>
+          <button
+            type="button"
+            role="tab"
+            data-tab="updated"
+            aria-selected="false"
+            class="flex-1 rounded-xl px-3 py-2 text-[14px] font-semibold transition aria-selected:bg-brand-weak aria-selected:text-brand-strong text-ink-mute"
+          >
+            최근 업데이트
+          </button>
+        </div>
+      </nav>
+
+      <!-- 목록 영역: 데스크톱 반반 분할 -->
+      <main class="mx-auto flex min-h-0 w-full max-w-[1440px] flex-1 flex-col gap-0 p-0 md:flex-row md:gap-4 md:p-4">
+        <%
+          const panels = [
+            { key: "created", title: "최근 수집", caption: "createdAt 기준 최신순", dateLabel: "수집일" },
+            { key: "updated", title: "최근 업데이트", caption: "updatedAt 기준 최신순", dateLabel: "업데이트일" },
+          ];
+        %>
+        <% panels.forEach((panel, index) => { %>
+          <section
+            data-panel="<%= panel.key %>"
+            class="flex min-h-0 w-full flex-1 flex-col bg-white md:w-1/2 md:rounded-2xl md:border md:border-line md:shadow-card <%= index === 1 ? 'hidden md:flex' : '' %>"
+          >
+            <!-- 패널 헤더 -->
+            <div class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3">
+              <div class="mr-auto">
+                <h2 class="text-[16px] font-bold"><%= panel.title %></h2>
+                <p class="text-[12px] text-ink-mute">
+                  <span data-field="total">0</span>건 · <%= panel.caption %>
+                </p>
+              </div>
+              <label class="flex items-center gap-2">
+                <span class="sr-only"><%= panel.dateLabel %> 필터</span>
+                <input
+                  type="date"
+                  data-role="date"
+                  class="h-9 rounded-xl border border-line-strong bg-canvas px-2.5 text-[13px] font-medium text-ink-sub outline-none transition focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20"
+                />
+              </label>
+              <button
+                type="button"
+                data-action="clear-date"
+                class="hidden h-9 rounded-xl bg-line px-3 text-[13px] font-semibold text-ink-sub transition hover:bg-line-strong"
+              >
+                초기화
+              </button>
+            </div>
+
+            <!-- 패널 바디 (스크롤) -->
+            <div data-role="body" class="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-slim">
+              <div data-role="list" class="divide-y divide-line"></div>
+              <p data-role="state" class="px-4 py-10 text-center text-[13px] text-ink-mute">불러오는 중…</p>
+            </div>
+
+            <!-- 패널 푸터 (페이지네이션) -->
+            <div class="flex shrink-0 items-center justify-between gap-2 border-t border-line px-4 py-3">
+              <button
+                type="button"
+                data-action="prev"
+                class="h-9 rounded-xl bg-line px-4 text-[13px] font-semibold text-ink-sub transition hover:bg-line-strong disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                이전
+              </button>
+              <p class="text-[13px] font-semibold tabular-nums text-ink-sub">
+                <span data-field="page">1</span>
+                <span class="text-ink-mute">/</span>
+                <span data-field="totalPages">1</span>
+              </p>
+              <button
+                type="button"
+                data-action="next"
+                class="h-9 rounded-xl bg-brand px-4 text-[13px] font-semibold text-white transition hover:bg-brand-strong disabled:cursor-not-allowed disabled:bg-line disabled:text-ink-mute"
+              >
+                다음
+              </button>
+            </div>
+          </section>
+        <% }) %>
+      </main>
+    </div>
+
+    <div
+      data-role="toast"
+      class="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-ink px-4 py-2.5 text-[13px] font-semibold text-white opacity-0 transition-opacity duration-200"
+    ></div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var TIMEZONE = "<%= summary.timezone %>";
+        var PAGE_SIZE = 20;
+
+        function formatNumber(value) {
+          return Number(value || 0).toLocaleString("ko-KR");
+        }
+
+        function formatDateTime(value) {
+          if (!value) return "-";
+          var date = new Date(value);
+          if (isNaN(date.getTime())) return "-";
+          return date.toLocaleString("ko-KR", {
+            timeZone: TIMEZONE,
+            year: "2-digit",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        }
+
+        function formatDate(value) {
+          if (!value) return "-";
+          var date = new Date(value);
+          if (isNaN(date.getTime())) return "-";
+          return date.toLocaleDateString("ko-KR", {
+            timeZone: TIMEZONE,
+            year: "2-digit",
+            month: "2-digit",
+            day: "2-digit",
+          });
+        }
+
+        function formatPrice(value) {
+          var numeric = Number(String(value).replace(/[^0-9.-]/g, ""));
+          if (!value || isNaN(numeric) || numeric === 0) return "";
+          return formatNumber(numeric) + "원";
+        }
+
+        function escapeHtml(value) {
+          return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char];
+          });
+        }
+
+        var toastElement = document.querySelector('[data-role="toast"]');
+        var toastTimer = null;
+
+        function showToast(message) {
+          if (!toastElement) return;
+          toastElement.textContent = message;
+          toastElement.classList.remove("opacity-0");
+          toastElement.classList.add("opacity-100");
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(function () {
+            toastElement.classList.remove("opacity-100");
+            toastElement.classList.add("opacity-0");
+          }, 1800);
+        }
+
+        /**
+         * 목록 한 건의 카드 마크업.
+         * - 기준 시각(수집/업데이트)은 패널에 따라 다른 필드를 강조한다
+         */
+        function renderItem(item, sortKey) {
+          var primaryLabel = sortKey === "updated" ? "업데이트" : "수집";
+          var primaryAt = sortKey === "updated" ? item.updatedAt : item.createdAt;
+          var price = formatPrice(item.price);
+          var thumbnail = item.imageLink
+            ? '<img src="' +
+              escapeHtml(item.imageLink) +
+              '" alt="" loading="lazy" class="h-14 w-14 shrink-0 rounded-xl bg-canvas object-cover" onerror="this.remove()" />'
+            : '<div class="h-14 w-14 shrink-0 rounded-xl bg-canvas"></div>';
+
+          var titleNode = item.link
+            ? '<a href="' +
+              escapeHtml(item.link) +
+              '" target="_blank" rel="noreferrer" class="line-clamp-2 text-[14px] font-semibold leading-snug text-ink hover:text-brand hover:underline">' +
+              escapeHtml(item.title) +
+              "</a>"
+            : '<p class="line-clamp-2 text-[14px] font-semibold leading-snug text-ink">' + escapeHtml(item.title) + "</p>";
+
+          return (
+            '<article class="flex gap-3 px-4 py-3 transition hover:bg-canvas">' +
+            thumbnail +
+            '<div class="min-w-0 flex-1">' +
+            titleNode +
+            '<div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-ink-mute">' +
+            '<span class="font-medium text-ink-sub tabular-nums">#' +
+            escapeHtml(item.productNo) +
+            "</span>" +
+            (price ? '<span class="font-semibold text-ink-sub tabular-nums">' + price + "</span>" : "") +
+            "<span>출발 " +
+            formatDate(item.departureDate) +
+            "</span>" +
+            "</div>" +
+            '<p class="mt-0.5 text-[12px] tabular-nums text-ink-mute">' +
+            primaryLabel +
+            " " +
+            formatDateTime(primaryAt) +
+            (item.verifiedAt ? " · 검증 " + formatDateTime(item.verifiedAt) : "") +
+            "</p>" +
+            "</div>" +
+            "</article>"
+          );
+        }
+
+        /**
+         * 목록 패널 하나를 제어한다. (조회 / 날짜 필터 / 페이지네이션)
+         */
+        function createPanel(section) {
+          var sortKey = section.dataset.panel === "updated" ? "updated" : "created";
+          var listElement = section.querySelector('[data-role="list"]');
+          var stateElement = section.querySelector('[data-role="state"]');
+          var bodyElement = section.querySelector('[data-role="body"]');
+          var dateInput = section.querySelector('[data-role="date"]');
+          var clearButton = section.querySelector('[data-action="clear-date"]');
+          var prevButton = section.querySelector('[data-action="prev"]');
+          var nextButton = section.querySelector('[data-action="next"]');
+          var fields = {
+            total: section.querySelector('[data-field="total"]'),
+            page: section.querySelector('[data-field="page"]'),
+            totalPages: section.querySelector('[data-field="totalPages"]'),
+          };
+
+          var page = 1;
+          var requestId = 0;
+
+          function setState(message) {
+            if (!message) {
+              stateElement.classList.add("hidden");
+              return;
+            }
+            stateElement.textContent = message;
+            stateElement.classList.remove("hidden");
+          }
+
+          function buildUrl() {
+            var params = new URLSearchParams({
+              sort: sortKey,
+              page: String(page),
+              pageSize: String(PAGE_SIZE),
+            });
+            if (dateInput.value) params.set("date", dateInput.value);
+            return "/api/dashboard/feed?" + params.toString();
+          }
+
+          async function load() {
+            var currentRequest = ++requestId;
+            prevButton.disabled = true;
+            nextButton.disabled = true;
+            if (!listElement.childElementCount) setState("불러오는 중…");
+
+            try {
+              var response = await fetch(buildUrl(), { headers: { Accept: "application/json" } });
+              if (!response.ok) throw new Error("HTTP " + response.status);
+              var data = await response.json();
+
+              // 느린 응답이 뒤늦게 도착해 최신 결과를 덮어쓰지 않도록 버린다.
+              if (currentRequest !== requestId) return;
+
+              page = data.page;
+              fields.total.textContent = formatNumber(data.total);
+              fields.page.textContent = formatNumber(data.page);
+              fields.totalPages.textContent = formatNumber(data.totalPages);
+
+              listElement.innerHTML = data.items
+                .map(function (item) {
+                  return renderItem(item, sortKey);
+                })
+                .join("");
+
+              setState(data.items.length ? "" : "조건에 맞는 상품이 없습니다.");
+              bodyElement.scrollTop = 0;
+
+              prevButton.disabled = data.page <= 1;
+              nextButton.disabled = data.page >= data.totalPages;
+            } catch (error) {
+              if (currentRequest !== requestId) return;
+              listElement.innerHTML = "";
+              setState("목록을 불러오지 못했습니다. (" + error.message + ")");
+              prevButton.disabled = page <= 1;
+              nextButton.disabled = false;
+            }
+          }
+
+          dateInput.addEventListener("change", function () {
+            page = 1;
+            clearButton.classList.toggle("hidden", !dateInput.value);
+            load();
+          });
+
+          clearButton.addEventListener("click", function () {
+            dateInput.value = "";
+            clearButton.classList.add("hidden");
+            page = 1;
+            load();
+          });
+
+          prevButton.addEventListener("click", function () {
+            if (page <= 1) return;
+            page -= 1;
+            load();
+          });
+
+          nextButton.addEventListener("click", function () {
+            page += 1;
+            load();
+          });
+
+          load();
+
+          return { reload: function () { page = 1; load(); } };
+        }
+
+        var panels = Array.prototype.map.call(document.querySelectorAll("[data-panel]"), createPanel);
+
+        // 모바일 탭 전환
+        var tabButtons = document.querySelectorAll("[data-tab]");
+        Array.prototype.forEach.call(tabButtons, function (button) {
+          button.addEventListener("click", function () {
+            Array.prototype.forEach.call(tabButtons, function (other) {
+              other.setAttribute("aria-selected", String(other === button));
+            });
+            document.querySelectorAll("[data-panel]").forEach(function (section) {
+              var active = section.dataset.panel === button.dataset.tab;
+              section.classList.toggle("hidden", !active);
+              section.classList.toggle("md:flex", true);
+            });
+          });
+        });
+
+        // EP 주소 복사
+        document.querySelectorAll('[data-action="copy"]').forEach(function (button) {
+          button.addEventListener("click", async function () {
+            var value = button.dataset.copyValue || "";
+            try {
+              await navigator.clipboard.writeText(value);
+              showToast("EP 주소를 복사했어요");
+            } catch (error) {
+              showToast("복사에 실패했어요");
+            }
+          });
+        });
+
+        // 개괄 정보 새로고침
+        var refreshButton = document.querySelector('[data-action="refresh-summary"]');
+        if (refreshButton) {
+          refreshButton.addEventListener("click", async function () {
+            refreshButton.disabled = true;
+            refreshButton.textContent = "갱신 중…";
+
+            try {
+              var response = await fetch("/api/dashboard/summary", { headers: { Accept: "application/json" } });
+              if (!response.ok) throw new Error("HTTP " + response.status);
+              var summary = await response.json();
+
+              document.querySelectorAll("[data-field]").forEach(function (element) {
+                var path = element.dataset.field;
+                if (path === "generatedAt") {
+                  element.textContent = formatDateTime(summary.generatedAt);
+                  return;
+                }
+                if (path.indexOf("counts.") !== 0) return;
+                element.textContent = formatNumber(summary.counts[path.slice("counts.".length)]);
+              });
+
+              panels.forEach(function (panel) {
+                panel.reload();
+              });
+              showToast("최신 현황으로 갱신했어요");
+            } catch (error) {
+              showToast("갱신에 실패했어요");
+            } finally {
+              refreshButton.disabled = false;
+              refreshButton.textContent = "새로고침";
+            }
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>

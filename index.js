@@ -41,8 +41,8 @@ fastify.setErrorHandler((error, request, reply) => {
   });
 });
 
-fastify.get('/', async () => {
-  return 'OK';
+fastify.get('/', async (request, reply) => {
+  return reply.redirect('/dashboard');
 });
 
 fastify.get('/health', async () => {
@@ -61,6 +61,8 @@ async function start() {
     fastify.log.error('MongoDB connection error:', err);
     process.exit(1);
   }
+
+  await fastify.register(require('./pages'));
 
   try {
     await fastify.listen({ port: PORT });
