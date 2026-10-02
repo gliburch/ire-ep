@@ -123,7 +123,7 @@
             <span class="whitespace-nowrap">최근 등록 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCollectedAt) %></span></span>
           </div>
 
-          <!-- 3행: EP 주소. 복사해 쓰는 값이라 한 줄씩 떼어 둔다 -->
+          <!-- 3행: EP 주소. 링크로 바로 열 수 있게만 둔다 -->
           <div class="flex flex-col gap-1.5 text-[12px] text-ink-mute">
             <div class="flex min-w-0 items-center gap-x-2">
               <span class="shrink-0 font-semibold text-ink-sub">이레투어</span>
@@ -134,14 +134,6 @@
                   rel="noreferrer"
                   class="truncate font-semibold text-brand hover:text-brand-strong hover:underline"
                 ><%= epPrimary.url %></a>
-                <button
-                  type="button"
-                  data-action="copy"
-                  data-copy-value="<%= epPrimary.url %>"
-                  class="shrink-0 rounded-md bg-brand-weak px-1.5 py-0.5 text-[11px] font-semibold text-brand-strong transition hover:bg-brand hover:text-white"
-                >
-                  복사
-                </button>
               <% } else { %>
                 <span class="font-semibold text-ink-mute">FTP_BASE_URL 미설정</span>
               <% } %>
@@ -155,14 +147,6 @@
                 rel="noreferrer"
                 class="truncate font-semibold text-brand hover:text-brand-strong hover:underline"
               ><%= MODETOUR_EP_URL %></a>
-              <button
-                type="button"
-                data-action="copy"
-                data-copy-value="<%= MODETOUR_EP_URL %>"
-                class="shrink-0 rounded-md bg-brand-weak px-1.5 py-0.5 text-[11px] font-semibold text-brand-strong transition hover:bg-brand hover:text-white"
-              >
-                복사
-              </button>
             </div>
           </div>
         </div>
@@ -597,19 +581,6 @@
               section.classList.toggle("hidden", !active);
               section.classList.toggle("md:flex", true);
             });
-          });
-        });
-
-        // EP 주소 복사
-        document.querySelectorAll('[data-action="copy"]').forEach(function (button) {
-          button.addEventListener("click", async function () {
-            var value = button.dataset.copyValue || "";
-            try {
-              await navigator.clipboard.writeText(value);
-              showToast("EP 주소를 복사했어요");
-            } catch (error) {
-              showToast("복사에 실패했어요");
-            }
           });
         });
 
