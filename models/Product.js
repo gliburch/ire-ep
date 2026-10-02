@@ -17,6 +17,10 @@ const productSchema = new mongoose.Schema(
     arrivalDate: {
       type: Date,
     },
+    verifiedAt: {
+      type: Date,
+      index: true,
+    },
   },
   {
     timestamps: true,

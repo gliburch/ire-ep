@@ -22,6 +22,8 @@
     "ep:packages:prd": "NODE_ENV=production node scripts/ep.packages.js",
     "ep:dev": "node scripts/ep.js",
     "ep:prd": "NODE_ENV=production node scripts/ep.js",
+    "refresh:products:dev": "node scripts/refresh.products.js",
+    "refresh:products:prd": "NODE_ENV=production node scripts/refresh.products.js",
     "uploadEp": "node scripts/uploadEp.js",
     "backfill:ep-titles": "node scripts/backfillEpTitles.js",
     "test": "echo \"Error: no test specified\" && exit 1"
