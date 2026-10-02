@@ -3,23 +3,291 @@
   "crons": [
     {
       "path": "/api/cron/collect-product",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 0 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 0 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 1 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 1 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 2 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 2 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 3 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 3 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
       "schedule": "0 4 * * *"
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "5 4 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "10 4 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "15 4 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
       "schedule": "20 4 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 4 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 5 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 5 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 6 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 6 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 7 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 7 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 8 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 8 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 9 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 9 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 10 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 10 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 11 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 11 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 12 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 12 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 13 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 13 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 14 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 14 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 15 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 15 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 16 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 16 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 17 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 17 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 18 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 18 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 19 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 19 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 20 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 20 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 21 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 21 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 22 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 22 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "20 23 * * *"
+    },
+    {
+      "path": "/api/cron/collect-product",
+      "schedule": "40 23 * * *"
     },
     {
       "path": "/api/cron/collect-product-master",
