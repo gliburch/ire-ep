@@ -158,7 +158,7 @@ Hobby 플랜이라 크론 하나는 하루 1회까지이고 실행 시각에 ±5
 | --- | --- | --- |
 | `api/cron/collect-product` | 매시 :00 / :20 / :40 | 신규 Product 수집 + EP 생성·FTP 업로드 |
 | `api/cron/collect-product-master` | 14:00~14:20 (5분 간격) | ProductMaster를 5조각으로 나눠 수집 |
-| `api/cron/refresh-product` | 2시간 간격 :30 (10회/일) | Product 재검증 1회당 1,000개(동시 10) |
+| `api/cron/refresh-product` | 2시간 간격 :30 (10회/일) | Product 재검증 1,000개(동시 10) + EP 생성·FTP 업로드 |
 
 재검증 크론은 구간을 선점하지 않는다. 수집 크론과 달리 집을 번호가 없고, 그때그때
 `verifiedAt` 오래된 순으로 집으면 순서가 흔들려도 결과가 같다(±59분 오차에 영향받지 않는 이유).

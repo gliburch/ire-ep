@@ -10,7 +10,7 @@ const { generateProductEpFile } = require("./epService");
 const { uploadEpFileToFtp } = require("./ftpService");
 
 // 크론 1회가 수집할 상품 개수.
-const BATCH_SIZE = 200;
+const BATCH_SIZE = 300;
 
 // 재검증 크론 1회가 다룰 상품 수와 동시 요청 수.
 const REFRESH_BATCH_SIZE = 1000;
@@ -42,9 +42,12 @@ const EP_RESERVE_MS = 90_000;
 // 어디까지 수집했는지도 남지 않으므로, 그 전에 스스로 멈춘다.
 const TIME_BUDGET_MS = FUNCTION_LIMIT_MS - EP_RESERVE_MS;
 
-// 재검증은 EP를 만들지 않으므로 함수 한도의 거의 전부를 쓴다.
-// 남기는 30초는 마지막 묶음이 끝나고 요약을 남길 몫이다.
-const REFRESH_TIME_BUDGET_MS = FUNCTION_LIMIT_MS - 30_000;
+// 재검증 뒤 EP 생성·업로드에 남겨두는 시간.
+// 실측상 EP 생성만 100초(8만여 건)라 수집 쪽 EP_RESERVE_MS(90초)로는 모자란다.
+const REFRESH_EP_RESERVE_MS = 150_000;
+
+// 재검증에 쓸 수 있는 시간. 다 쓰면 묶음 사이에서 멈추고 EP 단계로 넘어간다.
+const REFRESH_TIME_BUDGET_MS = FUNCTION_LIMIT_MS - REFRESH_EP_RESERVE_MS;
 
 /**
  * 이어서 수집할 시작 번호를 정한다.
@@ -217,7 +220,7 @@ async function runProductCollectJob(logger = console, options = {}) {
  * - 구간을 정하지 않으므로 크론이 몇 번 돌든 자연히 이어지고, 한 바퀴를 돌면
  *   가장 오래 안 본 것이 다시 앞으로 온다. 순서가 흔들려도 결과는 같으므로
  *   Hobby 크론의 ±59분 오차나 실행 순서 뒤바뀜에 영향을 받지 않는다
- * - EP 파일은 만들지 않는다. EP는 Product 수집 작업이 전담한다
+ * - 수집 작업과 똑같이, 끝나면 EP 파일을 만들어 올린다
  */
 async function runProductRefreshJob(logger = console, options = {}) {
   const {
@@ -272,6 +275,19 @@ async function runProductRefreshJob(logger = console, options = {}) {
     },
   });
 
+  // 수집 작업과 같다. 재검증이 중간에 멈췄어도 EP 생성·업로드는 항상 시도하고,
+  // EP가 실패해도 재검증 결과(verifiedAt 갱신)는 이미 DB에 남아 있다.
+  let ep = { count: 0, url: "", skippedReason: "" };
+  let epError = null;
+
+  try {
+    ep = await publishProductEpFile(logger);
+  } catch (err) {
+    epError = err;
+    ep = { count: 0, url: "", skippedReason: `error: ${err.message}` };
+    logger.error?.({ err: err.message }, "EP 생성/업로드 실패");
+  }
+
   const summary = {
     skipped: false,
     job: CRON_JOB_TYPES.PRODUCT_CHANGE_TRACK,
@@ -281,6 +297,8 @@ async function runProductRefreshJob(logger = console, options = {}) {
     processedCount: processed,
     stoppedEarly,
     results,
+    ep,
+    error: epError?.message || undefined,
   };
 
   logger.info?.(summary, "Product 재검증 완료");
