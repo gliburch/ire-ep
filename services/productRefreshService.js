@@ -1,6 +1,7 @@
 const Product = require("../models/Product");
 const {
   getSoldoutFlags,
+  describeSoldout,
   isDeparted,
   fetchProductFromApi,
 } = require("./productScraperService");
@@ -27,16 +28,27 @@ const REFRESH_FIELDS = {
 };
 
 /**
- * 하나라도 걸리면 상품을 DB에서 지우는 조건.
- * - 수집 단계와 같은 기준이다. 저장해 둘 이유가 없는 상품은 남기지 않는다
- * - 삭제 사유는 문서가 아니라 changeLogs에 한글로 남는다
+ * 상품 데이터가 바뀌어 더는 팔 수 없게 된 경우. 문서를 지우고 changeLogs에 남긴다.
+ * - 판매 종료/취소는 되돌아오지 않는 변화다. "언제 봤느냐"와 무관하게 같은 판정이 나온다
+ * - 그래서 이력으로서 의미가 있다. 어느 상품이 왜 사라졌는지 나중에 되짚을 수 있다
  */
 const DROP_RULES = [
   {
     code: "soldout",
     test: (result) => getSoldoutFlags(result).length > 0,
-    note: (result) => `판매 종료 (${getSoldoutFlags(result).join(", ")})`,
+    note: (result) => describeSoldout(result),
   },
+];
+
+/**
+ * 데이터는 그대로인데 때가 지나 보관할 이유가 없어진 경우. 문서는 지우되 changeLogs에는 남기지 않는다.
+ * - 출발일 경과는 상품이 바뀌어서가 아니라 오늘 날짜가 흘러서 걸린다.
+ *   어제는 통과하고 오늘은 걸리는 판정을 "변경 이력"에 적으면
+ *   "바뀐 것"과 "때가 된 것"이 한 줄에 섞여 로그가 신호를 잃는다
+ * - 지우는 이유는 보관해도 쓸 데가 없기 때문이다. EP에는 어차피 나가지 않는데
+ *   재검증 대상으로는 영원히 잡혀 매일 API 호출만 쓴다
+ */
+const EXPIRE_RULES = [
   {
     code: "departed",
     test: (result) => isDeparted(result),
@@ -78,7 +90,8 @@ function diffRefreshFields(result, epData) {
 /**
  * 저장된 상품 하나를 상세 API로 재검증한다.
  * - 이미지 FTP를 거치지 않으므로 신규 수집보다 훨씬 싸다
- * - 판매 종료/출발 경과는 문서를 삭제한다
+ * - 판매 종료/취소(DROP_RULES)와 출발일 경과(EXPIRE_RULES) 모두 문서를 삭제하지만,
+ *   changeLogs에 남는 것은 앞쪽뿐이다
  */
 async function refreshProduct(doc) {
   const apiResponse = await fetchProductFromApi(doc.productNo);
@@ -95,7 +108,15 @@ async function refreshProduct(doc) {
       action: "deleted",
       note,
     });
+
     return { status: "deleted", note };
+  }
+
+  // 지우는 것까지는 같고 이력만 남기지 않는다. 두 경우의 차이는 콘솔 note로 구분된다.
+  const expireRule = EXPIRE_RULES.find((rule) => rule.test(result));
+  if (expireRule) {
+    await Product.deleteOne({ _id: doc._id });
+    return { status: "deleted", note: expireRule.note(result) };
   }
 
   const changes = diffRefreshFields(result, doc.epData);
@@ -177,6 +198,7 @@ async function refreshOldestProducts(options = {}) {
 module.exports = {
   REFRESH_FIELDS,
   DROP_RULES,
+  EXPIRE_RULES,
   diffRefreshFields,
   refreshProduct,
   refreshOldestProducts,

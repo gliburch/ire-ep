@@ -37,6 +37,7 @@ npm run dev                  # 헬스체크 서버 (GET /, /health)
 | `npm run ep:products:<env>` | 오늘 이후 출발 Product 기준 EP를 `dist/`에 생성 |
 | `npm run ep:packages:<env>` | Package 기준 EP를 `dist/`에 생성 |
 | `npm run ep:<env>` | 생성된 EP 파일들을 legacy 헤더 기준 하나로 병합 |
+| `npm run refresh:products:<env> -- [limit] [concurrency]` | `verifiedAt` 오래된 순으로 저장된 Product 재검증 |
 | `npm run backfill:ep-titles` | 저장된 `epData.title`을 현재 정제 규칙으로 재계산 |
 
 EP 명령어는 `:dev`/`:prd` 접미사로 대상 환경을 정한다.
@@ -84,8 +85,8 @@ npm run ep:productMasters:prd   # .env       (프로덕션)
 `soldout`은 `soldoutFlags`, `departed`는 `departureDate`, `skipped`/`failed`는 에러 메시지로
 사유가 함께 출력된다. 사유 없이 건너뛰면 정상 상품이 유실돼도 로그만으로는 구분할 수 없다.
 
-EP 생성 시에도 **출발일이 오늘 이후인 상품만** 포함한다. 수집 시점 이후에 출발일이 지나버린
-상품이 DB에 남아 있을 수 있으므로, 수집 단계 필터와 별개로 생성 단계에서 한 번 더 거른다.
+EP 생성 시에도 **출발일이 오늘 이후인 상품만** 포함한다. 수집·재검증 단계와 중복되는 의도된
+이중화다 (→ [출발일 필터는 세 단계에 걸친다](#출발일-필터는-세-단계에-걸친다)).
 
 ### ProductMaster (카탈로그 단위)
 
@@ -105,6 +106,47 @@ EP 생성 시에도 **출발일이 오늘 이후인 상품만** 포함한다. �
 **갱신 방식** — 이미 저장된 `masterCode`는 `updated_at`만 갱신하고 `epData`는 다시 만들지 않는다.
 데일리 배치가 당일 갱신분만 EP로 내보내기 때문에, 재방문한 마스터도 EP 대상에 포함시키려는 의도다.
 따라서 가격이나 제목이 바뀌어도 기존 `epData`에는 반영되지 않는다.
+
+## 재검증과 삭제 정책
+
+`npm run refresh:products:<env>`는 `verifiedAt` 오래된 순으로 Product를 상세 API로 다시 조회한다.
+삭제 사유는 두 갈래이고, **둘 다 지우지만 changeLogs에 남는 것은 한쪽뿐이다.**
+
+| 사유 | 조건 | changeLogs | 왜 |
+| --- | --- | --- | --- |
+| 판매 불가 (`DROP_RULES`) | `salesEnd` / `salesEndTravelPlanner` / `cancel` 중 하나라도 `"Y"` | O | 데이터가 바뀐 것이고 되돌아오지 않는다 |
+| 보관 만료 (`EXPIRE_RULES`) | `departureDate`가 오늘보다 이전 | X | 바뀐 건 상품이 아니라 오늘 날짜뿐이다 |
+
+출발일 경과를 이력에 남기면 "바뀐 것"과 "때가 된 것"이 섞여 로그가 신호를 잃는다. 그래도 지우는
+이유는, 보관해도 EP에는 안 나가면서 재검증 대상으로는 영원히 잡혀 API 호출만 쓰기 때문이다.
+콘솔에는 둘 다 `[DELETED]`로 찍히고 `note`로 사유가 갈린다. 요약 카운트는 합쳐서 센다.
+
+### 출발일 필터는 세 단계에 걸친다
+
+의도된 중복이다. 한쪽을 지우면 안 된다.
+
+| 단계 | 하는 일 | 없으면 |
+| --- | --- | --- |
+| 수집 (`scrapeProduct`) | 애초에 저장하지 않는다 | 이미지 FTP 비용만 쓰고 EP엔 안 나간다 |
+| 재검증 (`EXPIRE_RULES`) | 지난 상품을 지운다 | 재검증 대상이 무한히 쌓인다 |
+| EP 생성 (`futureOnly`) | 남은 건을 출력에서 뺀다 | 재검증이 아직 못 돈 상품이 EP로 새어 나간다 |
+
+재검증은 `limit`개씩만 돌아 전수 조사가 아니다. 어제 통과한 상품이 오늘 출발일을 넘겨도 순번이
+돌아오기 전엔 DB에 남으므로, **EP 생성 필터가 그 시차를 메운다.**
+
+판매 불가에는 이 이중화가 없다. 상세 API를 호출해야만 알 수 있어 EP 생성 단계에서 값싸게 재확인할
+방법이 없다. 즉 판매 종료 상품의 EP 노출을 막는 것은 재검증 주기에만 달려 있다.
+
+### changeLogs 기록 규칙
+
+쿼리 조건인 `action`은 영어(`updated` / `deleted`), 사람이 읽는 설명은 `note`가 한글로 맡는다.
+`createdAt` 기준 90일 TTL.
+
+- 값이 그대로인 건은 기록하지 않는다. 전부 남기면 로그가 신호를 잃는다.
+- 삭제 사유는 판매 종료와 취소를 구분하고, 원본 플래그를 괄호에 남긴다.
+  예) `취소 (cancel)`, `판매 종료, 취소 (salesEnd, cancel)`
+- 추적 키는 `documentId`가 아니라 `refKey`(`productNo` / `masterCode`)다.
+  문서가 삭제되면 `documentId`는 가리킬 대상이 없어진다.
 
 ## 데일리 자동 배치
 

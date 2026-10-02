@@ -23,6 +23,13 @@ const MAX_CONSECUTIVE_FTP_FAILURES = 5;
 // 판매 종료/취소 상품 판정에 쓰는 플래그. 하나라도 "Y"면 수집 대상이 아니다.
 const SOLDOUT_FLAGS = ["salesEnd", "salesEndTravelPlanner", "cancel"];
 
+// 같은 "판매 불가"라도 판매 종료와 취소는 사유가 다르다. 로그에서 구분하려고 둔 대응표.
+const SOLDOUT_FLAG_LABELS = {
+  salesEnd: "판매 종료",
+  salesEndTravelPlanner: "판매 종료(여행플래너)",
+  cancel: "취소",
+};
+
 /**
  * 판매 종료/취소로 "Y"가 선 플래그 목록을 돌려준다.
  * - 빈 배열이면 판매 중인 상품
@@ -30,6 +37,19 @@ const SOLDOUT_FLAGS = ["salesEnd", "salesEndTravelPlanner", "cancel"];
 function getSoldoutFlags(result) {
   const data = result || {};
   return SOLDOUT_FLAGS.filter((flag) => data[flag] === "Y");
+}
+
+/**
+ * 선 플래그를 한글 사유로 풀어쓴다.
+ * - 예) "취소 (cancel)", "판매 종료, 취소 (salesEnd, cancel)"
+ * - 원본 플래그를 괄호에 남겨 로그만 보고도 어떤 값이 섰는지 알 수 있게 한다
+ */
+function describeSoldout(result) {
+  const flags = getSoldoutFlags(result);
+  if (flags.length === 0) return "";
+
+  const labels = flags.map((flag) => SOLDOUT_FLAG_LABELS[flag] || flag);
+  return `${labels.join(", ")} (${flags.join(", ")})`;
 }
 
 /**
@@ -382,7 +402,9 @@ async function scrapeProducts(productNos, options = {}) {
 }
 
 module.exports = {
+  SOLDOUT_FLAG_LABELS,
   getSoldoutFlags,
+  describeSoldout,
   isDeparted,
   fetchProductFromApi,
   buildProductEpData,
