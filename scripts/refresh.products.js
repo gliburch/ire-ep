@@ -1,6 +1,7 @@
 require("../config/env");
 const mongoose = require("mongoose");
 const { connectDB } = require("../config/db");
+const Product = require("../models/Product");
 const { refreshOldestProducts } = require("../services/productRefreshService");
 
 function parseArg(name, fallback) {
@@ -27,6 +28,10 @@ async function main() {
   );
 
   const startedAt = Date.now();
+
+  const remaining = await Product.countDocuments({
+    epData: { $exists: true, $ne: null },
+  });
 
   const { total, results } = await refreshOldestProducts({
     limit,
@@ -62,8 +67,9 @@ async function main() {
         elapsed: `${(elapsedMs / 1000).toFixed(1)}s`,
         perItem: `${perItemMs.toFixed(0)}ms`,
         throughputPerSec: Number((total / (elapsedMs / 1000)).toFixed(2)),
-        // 실측 처리율로 환산한 전체 재검증 예상 시간
-        projected36k: `${((36000 * perItemMs) / 1000 / 60).toFixed(0)}분`,
+        // 실측 처리율로 환산한, 저장된 상품 전체를 한 바퀴 도는 데 걸릴 시간
+        targetTotal: remaining,
+        projectedAll: `${((remaining * perItemMs) / 1000 / 60).toFixed(0)}분`,
       },
       null,
       2,

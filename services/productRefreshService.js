@@ -152,9 +152,11 @@ async function refreshProduct(doc) {
  * verifiedAt이 오래된 순으로 limit개를 재검증한다.
  * - 범위를 호출측이 정하지 않으므로 중단 후 다시 실행하면 자연히 이어진다
  * - concurrency개씩 묶어 병렬 요청한다(이미지 업로드가 없어 순차일 이유가 없다)
+ * - shouldStop을 주면 묶음 사이에서만 확인하고 멈춘다. 날아간 요청을 중간에
+ *   끊으면 응답을 받고도 verifiedAt을 못 남겨 같은 건을 다음 실행이 또 집는다
  */
 async function refreshOldestProducts(options = {}) {
-  const { limit = 100, concurrency = 10, onItem } = options;
+  const { limit = 100, concurrency = 10, onItem, shouldStop } = options;
 
   const docs = await Product.find({ epData: { $exists: true, $ne: null } })
     .sort({ verifiedAt: 1, updatedAt: 1 })
@@ -163,8 +165,15 @@ async function refreshOldestProducts(options = {}) {
     .lean();
 
   const results = { changed: 0, unchanged: 0, deleted: 0, failed: 0 };
+  let processed = 0;
+  let stoppedEarly = false;
 
   for (let i = 0; i < docs.length; i += concurrency) {
+    if (shouldStop && shouldStop()) {
+      stoppedEarly = true;
+      break;
+    }
+
     const batch = docs.slice(i, i + concurrency);
     const settled = await Promise.allSettled(
       batch.map((doc) => refreshProduct(doc)),
@@ -190,9 +199,11 @@ async function refreshOldestProducts(options = {}) {
         }
       }
     });
+
+    processed += batch.length;
   }
 
-  return { total: docs.length, results };
+  return { total: docs.length, processed, stoppedEarly, results };
 }
 
 module.exports = {

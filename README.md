@@ -148,8 +148,22 @@ EP 생성 시에도 **출발일이 오늘 이후인 상품만** 포함한다. �
 - 추적 키는 `documentId`가 아니라 `refKey`(`productNo` / `masterCode`)다.
   문서가 삭제되면 `documentId`는 가리킬 대상이 없어진다.
 
-## 데일리 자동 배치
+## 자동 배치 (Vercel Cron)
 
-- Vercel Cron으로 ProductMaster 스크래핑을 5개 배치로 나눠 실행하고, `finalize`에서만 당일 갱신분 EP 생성·FTP 업로드.
-- `vercel.json` 스케줄은 UTC 기준(`23:00 KST = 14:00 UTC`부터 5분 간격).
-- 엔드포인트는 `api/cron`의 `daily-scrape-1..5`, `daily-finalize`. 모두 `Authorization: Bearer <CRON_SECRET>` 필요.
+스케줄은 UTC 기준, 모든 엔드포인트가 `Authorization: Bearer <CRON_SECRET>`을 요구한다.
+Hobby 플랜이라 크론 하나는 하루 1회까지이고 실행 시각에 ±59분 오차가 있다.
+함수 한도는 300초(`maxDuration`)이며 각 작업은 그 안에서 스스로 멈춘다.
+
+| 엔드포인트 | 스케줄 | 하는 일 |
+| --- | --- | --- |
+| `api/cron/collect-product` | 매시 :00 / :20 / :40 | 신규 Product 수집 + EP 생성·FTP 업로드 |
+| `api/cron/collect-product-master` | 14:00~14:20 (5분 간격) | ProductMaster를 5조각으로 나눠 수집 |
+| `api/cron/refresh-product` | 2시간 간격 :30 (10회/일) | Product 재검증 1회당 1,000개(동시 10) |
+
+재검증 크론은 구간을 선점하지 않는다. 수집 크론과 달리 집을 번호가 없고, 그때그때
+`verifiedAt` 오래된 순으로 집으면 순서가 흔들려도 결과가 같다(±59분 오차에 영향받지 않는 이유).
+겹침은 직전 실행 10분 쿨다운(`REFRESH_COOLDOWN_MS`)으로 거른다. 잠금이 아니므로 뚫릴 수 있지만
+손해는 같은 1,000건에 API를 두 번 쓰는 것뿐이다.
+
+정렬에는 `{ verifiedAt: 1, updatedAt: 1 }` 복합 인덱스가 필요하다. 없으면 매 실행이 컬렉션
+전체를 훑고 메모리에서 정렬한다. 반영은 `node scripts/setupDb.js products`.
