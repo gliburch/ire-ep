@@ -4,6 +4,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { Readable } = require("stream");
 const { resizeImageBuffer } = require("./imageResizeService");
+const { EP_FILENAME } = require("../config/env");
 
 const FTP_CONFIG = {
   host: process.env.FTP_HOST,
@@ -196,7 +197,7 @@ async function uploadImageToFtp(ftpClient, imageUrl) {
 /**
  * EP 파일 FTP 업로드
  */
-async function uploadEpFileToFtp(content, filename = "ire_naver_ep.txt") {
+async function uploadEpFileToFtp(content, filename = EP_FILENAME) {
   const remotePath = `${EP_DIR}/${filename}`;
 
   const ftpClient = await createFtpClient();

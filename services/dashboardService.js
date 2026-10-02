@@ -3,11 +3,7 @@ const fs = require("fs");
 const Product = require("../models/Product");
 const ProductMaster = require("../models/ProductMaster");
 const DailyBatchState = require("../models/DailyBatchState");
-const {
-  DIST_DIR,
-  EP_OUTPUT_FILENAME,
-  EP_SOURCE_FILENAMES,
-} = require("../config/epConfig");
+const { EP_FILENAME } = require("../config/env");
 
 // 날짜 필터는 운영 기준 시간대(기본 Asia/Seoul)의 하루 경계로 해석한다.
 const TIMEZONE_OFFSETS = {
@@ -15,12 +11,14 @@ const TIMEZONE_OFFSETS = {
   UTC: "+00:00",
 };
 
+const DIST_DIR = path.resolve(__dirname, "../dist");
+
 // 상단 개괄 정보에 노출할 EP 파일 목록.
 // 운영 EP(네이버에 등록된 주소)를 첫 번째로 둔다.
 const EP_FILES = [
-  { name: EP_OUTPUT_FILENAME, label: "운영 EP (네이버 등록)" },
-  { name: EP_SOURCE_FILENAMES.products, label: "Product 기준 EP" },
-  { name: EP_SOURCE_FILENAMES.productMasters, label: "ProductMaster 기준 EP" },
+  { name: EP_FILENAME, label: "운영 EP (네이버 등록)" },
+  { name: "ire_naver_ep.products.txt", label: "Product 기준 EP" },
+  { name: "ire_naver_ep.productMasters.txt", label: "ProductMaster 기준 EP" },
 ];
 
 const DEFAULT_PAGE_SIZE = 20;

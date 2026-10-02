@@ -1,11 +1,10 @@
-require("../config/env");
+const { EP_FILENAME } = require("../config/env");
 const path = require("path");
 const fs = require("fs");
 const { uploadEpFileFromPath } = require("../services/ftpService");
 
 // dist의 EP 파일을 FTP의 /www/ep 아래로 업로드한다.
 // 사용법: node scripts/uploadEp.js [로컬파일경로] [원격파일명]
-const DEFAULT_FILENAME = "251117_ire_naver_ep.txt";
 
 function formatMb(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
@@ -15,7 +14,7 @@ async function main() {
   const args = process.argv.slice(2);
   const localPath = args[0]
     ? path.resolve(args[0])
-    : path.resolve(__dirname, "../dist", DEFAULT_FILENAME);
+    : path.resolve(__dirname, "../dist", EP_FILENAME);
   const filename = args[1] || path.basename(localPath);
 
   if (!fs.existsSync(localPath)) {

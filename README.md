@@ -17,6 +17,15 @@ cp .env.example .env.local   # 값 채우기
 npm run dev                  # 헬스체크 서버 (GET /, /health)
 ```
 
+### EP 파일명
+
+최종 EP 산출물 이름은 코드에 박아두지 않고 env로 정한다.
+배치·업로드 스크립트·대시보드가 모두 `EP_FILENAME`을 쓴다.
+
+| 변수 | 기본값 | 설명 |
+| --- | --- | --- |
+| `EP_FILENAME` | `ire_naver_ep.txt` | 병합 결과이자 FTP `/www/ep`에 올라가는 최종 파일명 |
+
 ## 로컬 스크립트
 
 | 명령어 | 설명 |

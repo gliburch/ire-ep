@@ -24,9 +24,10 @@ const {
   DAILY_BATCH_TIMEZONE,
   PRODUCT_MASTER_SCRAPE_MONTHS,
   EP_OVERRIDE_SHEET_URL,
+  EP_FILENAME,
 } = process.env;
 
-module.exports = {
+const required = {
   MONGODB_URI,
   MONGODB_DB,
   PORT,
@@ -45,7 +46,15 @@ module.exports = {
   EP_OVERRIDE_SHEET_URL,
 };
 
-const missing = Object.keys(module.exports).filter((key) => !module.exports[key]);
+// 비어 있어도 기본값으로 동작하는 값들.
+const optional = {
+  // 최종 EP 산출물 및 FTP 업로드 파일명.
+  EP_FILENAME: EP_FILENAME || "ire_naver_ep.txt",
+};
+
+module.exports = { ...required, ...optional };
+
+const missing = Object.keys(required).filter((key) => !required[key]);
 
 if (missing.length > 0) {
   throw new Error(

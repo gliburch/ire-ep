@@ -1,3 +1,4 @@
+const { EP_FILENAME } = require("../config/env");
 const path = require("path");
 const fs = require("fs");
 const { EP_HEADERS, sanitizeForTsv } = require("../services/epService");
@@ -13,7 +14,7 @@ const DEFAULT_INPUTS = [
   path.join(DIST_DIR, "ire_naver_ep.products.txt"),
 ];
 
-const DEFAULT_OUTPUT = path.join(DIST_DIR, "ire_naver_ep.txt");
+const DEFAULT_OUTPUT = path.join(DIST_DIR, EP_FILENAME);
 
 // 옛 22컬럼 EP 파일을 입력으로 받을 때를 위한 컬럼명 대응.
 // 값의 의미가 같고 위치도 같아 매핑해 옮긴다.

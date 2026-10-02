@@ -1,4 +1,8 @@
-const { DAILY_SCRAPE_BATCH_COUNT, DAILY_BATCH_TIMEZONE } = require("../config/env");
+const {
+  DAILY_SCRAPE_BATCH_COUNT,
+  DAILY_BATCH_TIMEZONE,
+  EP_FILENAME,
+} = require("../config/env");
 const DailyBatchState = require("../models/DailyBatchState");
 const { getProductMasterSearchTargets } = require("./searchTargetService");
 const { scrapeAllProductMasters } = require("./productMasterScraperService");
@@ -213,7 +217,7 @@ async function runDailyFinalizeJob(logger = console) {
     }
 
     const normalizedContent = epResult.content.replace(/^\uFEFF/, "");
-    const url = await uploadEpFileToFtp(normalizedContent, "ire_naver_ep.txt");
+    const url = await uploadEpFileToFtp(normalizedContent, EP_FILENAME);
 
     state.finalizedAt = new Date();
     await state.save();
