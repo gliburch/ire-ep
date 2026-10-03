@@ -185,6 +185,12 @@ async function buildProductEpData(result, options = {}) {
     attribute,
     gender: "남녀공용",
     ...(badges.existsCoupon ? { coupon: "Y" } : {}),
+    ...(data.transportName ? { transport_name: data.transportName } : {}),
+    ...(data.transportCode ? { transport_code: data.transportCode } : {}),
+    ...(data.departureAirlineName ? { departure_airline_name: data.departureAirlineName } : {}),
+    ...(data.arrivalAirlineName ? { arrival_airline_name: data.arrivalAirlineName } : {}),
+    ...(data.departureFlight ? { departure_flight: data.departureFlight } : {}),
+    ...(data.arrivalFlight ? { arrival_flight: data.arrivalFlight } : {}),
   };
 }
 

@@ -197,7 +197,11 @@ async function collectProductEpData(options = {}) {
     // 제목 조립 순서: sanitizeTitle(수집) → 출발일 접미사(여기) → 제목 덮어쓰기(buildEpFileContent)
     epDataList.push({
       ...product.epData,
-      title: appendDepartureSuffix(product.epData.title, product.departureDate),
+      title: appendDepartureSuffix(
+        product.epData.title,
+        product.departureDate,
+        product.epData.transport_name,
+      ),
     });
   }
 

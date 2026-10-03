@@ -71,20 +71,21 @@ function formatDepartureSuffix(value) {
 }
 
 /**
- * 정제된 제목 뒤에 출발일 접미사를 붙인다.
- * - sanitizeTitle은 "|"와 날짜 구분자를 지우므로 반드시 정제 이후에 붙여야 한다
+ * 정제된 제목 뒤에 출발일/항공사 접미사를 붙인다.
+ * - sanitizeTitle은 특수문자를 지우므로 반드시 정제 이후에 붙여야 한다
  * - 100자를 넘으면 접미사를 살리고 제목 쪽을 자른다.
  *   잘린 제목은 사람이 읽어 보완할 수 있지만, 출발일이 빠진 제목은
  *   같은 상품의 다른 출발일 행과 구별되지 않아 EP에서 더 치명적이다
+ * - 예) "(제목). 2027년 9월 12일 출발. 대한항공"
  */
-function appendDepartureSuffix(title, value) {
-  const suffix = formatDepartureSuffix(value);
-  if (!suffix) {
+function appendDepartureSuffix(title, value, airline = "") {
+  const departure = formatDepartureSuffix(value);
+  const parts = [departure, airline].filter(Boolean);
+  if (parts.length === 0) {
     return title;
   }
 
-  const separator = " | ";
-  const tail = `${separator}${suffix}`;
+  const tail = parts.map((p) => `. ${p}`).join("");
   const room = TITLE_MAX_LENGTH - tail.length;
 
   return `${String(title).slice(0, Math.max(0, room)).trim()}${tail}`;

@@ -56,8 +56,10 @@ function toListItem(product) {
   return {
     productNo: product.productNo,
     title: epData.title || "(제목 없음)",
-    // EP에 나갈 제목은 여기에 접미사가 붙은 모양이다. 화면도 같은 함수로 만들어 둘이 어긋나지 않게 한다.
-    departureSuffix: formatDepartureSuffix(product.departureDate),
+    // EP에 나갈 제목은 여기에 접미사가 붙은 모양이다. 화면도 같은 포맷으로 맞춰 둘이 어긋나지 않게 한다.
+    departureSuffix: [formatDepartureSuffix(product.departureDate), epData.transport_name]
+      .filter(Boolean)
+      .join(". "),
     price: epData.price_pc || epData.benefit_price || "",
     link: epData.link || "",
     imageLink: epData.image_link || "",
