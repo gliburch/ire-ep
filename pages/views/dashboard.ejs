@@ -5,14 +5,17 @@
     if (!value) return "-";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "-";
-    return date.toLocaleString("ko-KR", {
+    const parts = new Intl.DateTimeFormat("ko-KR", {
       timeZone: summary.timezone,
-      year: "2-digit",
+      year: "numeric",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-    });
+      hour12: true,
+    }).formatToParts(date);
+    const get = (type) => (parts.find((p) => p.type === type) || {}).value || "";
+    return `${get("year")}-${get("month")}-${get("day")} ${get("dayPeriod")} ${get("hour").padStart(2, "0")}:${get("minute")}`;
   };
   const epPrimary = summary.epFiles[0];
   // 비교용으로 늘 열어보는 경쟁사 EP. 고정값이라 템플릿에 둔다
@@ -102,7 +105,7 @@
           <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-ink-mute">
             <% const collectionCounts = [
               { label: "product", field: "products", value: summary.counts.products },
-              { label: "masterProduct", field: "productMasters", value: summary.counts.productMasters },
+              { label: "productMaster", field: "productMasters", value: summary.counts.productMasters },
               { label: "package", field: "packages", value: summary.counts.packages },
             ]; %>
             <% collectionCounts.forEach((item) => { %>
@@ -115,14 +118,14 @@
             <span aria-hidden="true" class="text-line-strong">|</span>
             <% if (summary.latestCronJob) { %>
               <span class="whitespace-nowrap">
-                크론 <%= summary.latestCronJob.job %>
+                최근 크론
                 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCronJob.ranAt) %></span>
                 <% if (summary.latestCronJob.startNo) { %>
                   (<%= formatNumber(summary.latestCronJob.startNo) %>~<%= formatNumber(summary.latestCronJob.lastNo) %>)
                 <% } %>
               </span>
             <% } else { %>
-              <span class="whitespace-nowrap">크론 <span class="font-semibold text-ink-sub">기록 없음</span></span>
+              <span class="whitespace-nowrap">최근 크론 <span class="font-semibold text-ink-sub">기록 없음</span></span>
             <% } %>
             <span class="whitespace-nowrap">최근 등록 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCollectedAt) %></span></span>
           </div>
@@ -290,14 +293,20 @@
           if (!value) return "-";
           var date = new Date(value);
           if (isNaN(date.getTime())) return "-";
-          return date.toLocaleString("ko-KR", {
+          var parts = new Intl.DateTimeFormat("ko-KR", {
             timeZone: TIMEZONE,
-            year: "2-digit",
+            year: "numeric",
             month: "2-digit",
             day: "2-digit",
             hour: "2-digit",
             minute: "2-digit",
-          });
+            hour12: true,
+          }).formatToParts(date);
+          var get = function (type) {
+            var hit = parts.find(function (p) { return p.type === type; });
+            return hit ? hit.value : "";
+          };
+          return get("year") + "-" + get("month") + "-" + get("day") + " " + get("dayPeriod") + " " + get("hour").padStart(2, "0") + ":" + get("minute");
         }
 
         function formatDate(value) {
@@ -353,7 +362,6 @@
               '" alt="" loading="lazy" class="h-14 w-14 shrink-0 rounded-xl bg-canvas object-cover" onerror="this.remove()" />'
             : '<div class="h-14 w-14 shrink-0 rounded-xl bg-canvas"></div>';
 
-          // 출발일 접미사는 EP에서 제목 뒤에 붙는 값이다. 제목 본문과 구분되도록 연하게 둔다.
           var titleHtml =
             escapeHtml(item.title) +
             (item.departureSuffix
@@ -363,10 +371,10 @@
           var titleNode = item.link
             ? '<a href="' +
               escapeHtml(item.link) +
-              '" target="_blank" rel="noreferrer" class="line-clamp-2 text-[14px] font-semibold leading-snug text-ink hover:text-brand hover:underline">' +
+              '" target="_blank" rel="noreferrer" class="line-clamp-3 text-[14px] font-semibold leading-snug text-ink hover:text-brand hover:underline">' +
               titleHtml +
               "</a>"
-            : '<p class="line-clamp-2 text-[14px] font-semibold leading-snug text-ink">' + titleHtml + "</p>";
+            : '<p class="line-clamp-3 text-[14px] font-semibold leading-snug text-ink">' + titleHtml + "</p>";
 
           return (
             '<article class="flex gap-3 px-4 py-3 transition hover:bg-canvas">' +
@@ -378,9 +386,6 @@
             escapeHtml(item.productNo) +
             "</span>" +
             (price ? '<span class="font-semibold text-ink-sub tabular-nums">' + price + "</span>" : "") +
-            "<span>출발 " +
-            formatDate(item.departureDate) +
-            "</span>" +
             "</div>" +
             '<p class="mt-0.5 text-[12px] tabular-nums text-ink-mute">' +
             primaryLabel +
