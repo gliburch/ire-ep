@@ -1,3 +1,4 @@
+const { EP_MAX_ITEMS } = require("../config/env");
 const ProductMaster = require("../models/ProductMaster");
 const { getTitleOverrides } = require("./titleOverrideService");
 const { appendDepartureSuffix } = require("./scraperUtils");
@@ -216,7 +217,15 @@ async function collectProductEpData(options = {}) {
     query.departureDate = { $gte: today };
   }
 
-  const products = await Product.find(query, EP_FETCH_PROJECTION).lean();
+  // 출발일이 빠른 순으로 EP_MAX_ITEMS건까지만 담는다. 전량을 담으면 EP 생성이
+  // 함수 실행시간 한도를 넘겨 파일이 아예 만들어지지 않는다.
+  // 정렬 기준이 출발일인 것은 임박한 상품을 먼저 싣는 것이 맞기도 하지만,
+  // departureDate 인덱스가 필터와 정렬을 한 번에 받아 별도 정렬 단계가
+  // 사라지기 때문이다. 다른 키로 정렬하면 인덱스가 둘로 갈려 풀스캔으로 돌아간다.
+  const products = await Product.find(query, EP_FETCH_PROJECTION)
+    .sort({ departureDate: 1 })
+    .limit(EP_MAX_ITEMS)
+    .lean();
 
   const grouped = new Map();
   for (const product of products) {
@@ -283,8 +292,6 @@ async function generatePackageEpFile() {
 }
 
 module.exports = {
-  EP_HEADERS,
-  sanitizeForTsv,
   buildEpFileContent,
   generateEpFile,
   generateProductEpFile,

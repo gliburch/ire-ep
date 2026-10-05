@@ -1,4 +1,4 @@
-require("../config/env");
+const { EP_FILENAME, EP_FILENAME_EXCLUDED } = require("../config/env");
 const path = require("path");
 const fs = require("fs");
 const mongoose = require("mongoose");
@@ -18,11 +18,11 @@ async function main() {
     console.log("\x1b[90m[ep]\x1b[0m /dist 폴더 생성됨");
   }
 
-  const mainPath = path.join(distDir, "ire_naver_ep.products.txt");
+  const mainPath = path.join(distDir, EP_FILENAME);
   fs.writeFileSync(mainPath, mainFile.content, "utf8");
   console.log(`\x1b[32m[ep]\x1b[0m 완료: ${mainFile.count}개 상품 → ${mainPath}`);
 
-  const excludedPath = path.join(distDir, "ire_naver_ep.products.excluded.txt");
+  const excludedPath = path.join(distDir, EP_FILENAME_EXCLUDED);
   fs.writeFileSync(excludedPath, excluded.content, "utf8");
   console.log(`\x1b[32m[ep]\x1b[0m 제외: ${excluded.count}개 상품 → ${excludedPath}`);
 }

@@ -22,7 +22,6 @@ const DIST_DIR = path.resolve(__dirname, "../dist");
 const EP_FILES = [
   { name: EP_FILENAME, label: "운영 EP (네이버 등록)" },
   { name: EP_FILENAME_EXCLUDED, label: "중복제외" },
-  { name: "ire_naver_ep.products.txt", label: "Product 기준 EP" },
   { name: "ire_naver_ep.productMasters.txt", label: "ProductMaster 기준 EP" },
 ];
 

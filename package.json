@@ -19,8 +19,6 @@
     "ep:products:prd": "NODE_ENV=production node scripts/ep.products.js",
     "ep:packages:dev": "node scripts/ep.packages.js",
     "ep:packages:prd": "NODE_ENV=production node scripts/ep.packages.js",
-    "ep:dev": "node scripts/ep.js",
-    "ep:prd": "NODE_ENV=production node scripts/ep.js",
     "refresh:products:dev": "node scripts/refresh.products.js",
     "refresh:products:prd": "NODE_ENV=production node scripts/refresh.products.js",
     "uploadEp": "node scripts/uploadEp.js",

@@ -25,6 +25,7 @@ const {
   EP_OVERRIDE_SHEET_URL,
   EP_FILENAME,
   EP_FILENAME_EXCLUDED,
+  EP_MAX_ITEMS,
 } = process.env;
 
 const required = {
@@ -45,6 +46,7 @@ const required = {
   EP_OVERRIDE_SHEET_URL,
   EP_FILENAME,
   EP_FILENAME_EXCLUDED,
+  EP_MAX_ITEMS,
 };
 
 const missing = Object.keys(required).filter((key) => !required[key]);
@@ -55,4 +57,8 @@ if (missing.length > 0) {
   );
 }
 
-module.exports = required;
+module.exports = {
+  ...required,
+  // EP 한 번에 담을 최대 상품 수. 전량을 담으면 생성이 함수 실행시간 한도를 넘는다.
+  EP_MAX_ITEMS: Number(EP_MAX_ITEMS),
+};
