@@ -18,7 +18,7 @@
     return `${get("year")}-${get("month")}-${get("day")} ${get("dayPeriod")} ${get("hour").padStart(2, "0")}:${get("minute")}`;
   };
   const epPrimary = summary.epFiles[0];
-  const epExcluded = summary.epFiles.find((f) => f.label === "제외");
+  const epExcluded = summary.epFiles.find((f) => f.label === "중복제외");
   // 비교용으로 늘 열어보는 경쟁사 EP. 고정값이라 템플릿에 둔다
   const MODETOUR_EP_URL = "https://staticservice.modetour.com/onbp/naver_ep/6352_naver_ep.txt";
 %>
@@ -145,14 +145,6 @@
               <% } else { %>
                 <span class="font-semibold text-ink-mute">FTP_BASE_URL 미설정</span>
               <% } %>
-              <% if (epExcluded && epExcluded.url) { %>
-                <a
-                  href="<%= epExcluded.url %>"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="shrink-0 rounded-md bg-line px-1.5 py-0.5 text-[11px] font-semibold text-ink-sub hover:bg-line-strong hover:text-ink"
-                >제외</a>
-              <% } %>
             </div>
 
             <div class="flex min-w-0 items-center gap-x-2">
@@ -164,6 +156,19 @@
                 class="truncate font-semibold text-brand hover:text-brand-strong hover:underline"
               ><%= MODETOUR_EP_URL %></a>
             </div>
+
+            <% if (epExcluded && epExcluded.url) { %>
+              <div class="flex min-w-0 items-center gap-x-2">
+                <span class="shrink-0 font-semibold text-ink-sub">중복제외</span>
+                <a
+                  href="<%= epExcluded.url %>"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="truncate font-semibold text-brand hover:text-brand-strong hover:underline"
+                ><%= epExcluded.url %></a>
+              </div>
+            <% } %>
+
           </div>
         </div>
       </header>

@@ -21,7 +21,7 @@ const DIST_DIR = path.resolve(__dirname, "../dist");
 // 운영 EP(네이버에 등록된 주소)를 첫 번째로 둔다.
 const EP_FILES = [
   { name: EP_FILENAME, label: "운영 EP (네이버 등록)" },
-  { name: EP_FILENAME_EXCLUDED, label: "제외" },
+  { name: EP_FILENAME_EXCLUDED, label: "중복제외" },
   { name: "ire_naver_ep.products.txt", label: "Product 기준 EP" },
   { name: "ire_naver_ep.productMasters.txt", label: "ProductMaster 기준 EP" },
 ];
