@@ -24,6 +24,7 @@ const {
   PRODUCT_MASTER_SCRAPE_MONTHS,
   EP_OVERRIDE_SHEET_URL,
   EP_FILENAME,
+  EP_FILENAME_EXCLUDED,
 } = process.env;
 
 const required = {
@@ -43,6 +44,7 @@ const required = {
   PRODUCT_MASTER_SCRAPE_MONTHS,
   EP_OVERRIDE_SHEET_URL,
   EP_FILENAME,
+  EP_FILENAME_EXCLUDED,
 };
 
 const missing = Object.keys(required).filter((key) => !required[key]);
@@ -53,13 +55,4 @@ if (missing.length > 0) {
   );
 }
 
-const epStemFull = EP_FILENAME;
-const epFirstDot = epStemFull.indexOf(".");
-const epBase = epFirstDot === -1 ? epStemFull : epStemFull.slice(0, epFirstDot);
-const epEnvSuffix = epFirstDot === -1 ? "" : epStemFull.slice(epFirstDot);
-
-module.exports = {
-  ...required,
-  EP_FILENAME: `${epStemFull}.txt`,
-  EP_FILENAME_EXCLUDED: `${epBase}.excluded${epEnvSuffix}.txt`,
-};
+module.exports = required;
