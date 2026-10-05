@@ -208,25 +208,28 @@ const EP_FETCH_PROJECTION = {
 
 async function collectProductEpData(options = {}) {
   const { futureOnly = true } = options;
-  const query = { epData: { $exists: true, $ne: null } };
+  const match = { epData: { $exists: true, $ne: null } };
 
   if (futureOnly) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    query.departureDate = { $gte: today };
+    match.departureDate = { $gte: today };
   }
 
-  const products = await Product.find(query, EP_FETCH_PROJECTION).lean();
+  // find().lean()은 결과를 배열에 다 담아놓고 반환해 10만 건을 Node 힙에 통째 올리는
+  // 메모리 피크가 생긴다. 커서로 받으면 배치마다 처리하고 해제돼 평탄하게 유지된다.
+  // (Mongo 쪽 $group 서버 집계는 Atlas M0에서 100MB 메모리 한도에 걸려 쓸 수 없다)
+  const cursor = Product.find(match, EP_FETCH_PROJECTION).lean().cursor({ batchSize: 1000 });
 
   const grouped = new Map();
-  for (const product of products) {
-    if (!product.epData) continue;
+  for await (const doc of cursor) {
+    if (!doc.epData) continue;
     const title = appendDepartureSuffix(
-      product.epData.title,
-      product.departureDate,
-      product.epData.transport_name,
+      doc.epData.title,
+      doc.departureDate,
+      doc.epData.transport_name,
     );
-    const row = { ...product.epData, title };
+    const row = { ...doc.epData, title };
     if (!grouped.has(title)) grouped.set(title, []);
     grouped.get(title).push(row);
   }
