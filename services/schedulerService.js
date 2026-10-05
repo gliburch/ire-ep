@@ -10,7 +10,7 @@ const { generateProductEpFile } = require("./epService");
 const { uploadEpFileToFtp } = require("./ftpService");
 
 // 크론 1회가 수집할 상품 개수.
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 300;
 
 // 재검증 크론 1회가 다룰 상품 수와 동시 요청 수.
 const REFRESH_BATCH_SIZE = 5000;
