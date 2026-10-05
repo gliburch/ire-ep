@@ -42,12 +42,8 @@ const required = {
   CRON_TIMEZONE,
   PRODUCT_MASTER_SCRAPE_MONTHS,
   EP_OVERRIDE_SHEET_URL,
-  // 최종 EP 산출물 및 FTP 업로드 파일명.
-  // 운영/로컬에서 서로 다른 파일을 쓰므로 기본값을 두지 않는다.
   EP_FILENAME,
 };
-
-module.exports = required;
 
 const missing = Object.keys(required).filter((key) => !required[key]);
 
@@ -56,3 +52,14 @@ if (missing.length > 0) {
     `Missing required environment variables: ${missing.join(", ")}`,
   );
 }
+
+const epStemFull = EP_FILENAME;
+const epFirstDot = epStemFull.indexOf(".");
+const epBase = epFirstDot === -1 ? epStemFull : epStemFull.slice(0, epFirstDot);
+const epEnvSuffix = epFirstDot === -1 ? "" : epStemFull.slice(epFirstDot);
+
+module.exports = {
+  ...required,
+  EP_FILENAME: `${epStemFull}.txt`,
+  EP_FILENAME_EXCLUDED: `${epBase}.excluded${epEnvSuffix}.txt`,
+};

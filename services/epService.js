@@ -174,10 +174,6 @@ async function generateEpFile(options = {}) {
   return buildEpFileContent(epDataList);
 }
 
-/**
- * Product(출발일 단위)에서 EP 파일에 포함할 epData를 수집한다.
- * - futureOnly가 true이면 오늘 이후 출발 상품만 포함
- */
 async function collectProductEpData(options = {}) {
   const { futureOnly = true } = options;
   const query = { epData: { $exists: true, $ne: null } };
@@ -190,32 +186,41 @@ async function collectProductEpData(options = {}) {
 
   const products = await Product.find(query, { epData: 1, departureDate: 1, _id: 0 }).lean();
 
-  const epDataList = [];
-
+  const grouped = new Map();
   for (const product of products) {
     if (!product.epData) continue;
-    // 제목 조립 순서: sanitizeTitle(수집) → 출발일 접미사(여기) → 제목 덮어쓰기(buildEpFileContent)
-    epDataList.push({
-      ...product.epData,
-      title: appendDepartureSuffix(
-        product.epData.title,
-        product.departureDate,
-        product.epData.transport_name,
-      ),
-    });
+    const title = appendDepartureSuffix(
+      product.epData.title,
+      product.departureDate,
+      product.epData.transport_name,
+    );
+    const row = { ...product.epData, title };
+    if (!grouped.has(title)) grouped.set(title, []);
+    grouped.get(title).push(row);
   }
 
-  return epDataList;
+  const included = [];
+  const excluded = [];
+  for (const rows of grouped.values()) {
+    included.push(rows[0]);
+    if (rows.length > 1) excluded.push(...rows);
+  }
+
+  return { included, excluded };
 }
 
 /**
  * Product 기반 EP 파일 생성 단일 진입점
- * @param {object} options
- * @param {boolean} options.futureOnly
+ *
+ * 네이버 EP 정책상 같은 제목의 상품이 섞여 올라가면 계정 정지 위험이 있어,
+ * 가격·출발일·항공사 등을 제목에 섞어 최대한 분기를 만든다.
+ * 그래도 제목이 겹치면 EP에 올리지 않고 excluded 파일로 뺀다(검수용).
  */
 async function generateProductEpFile(options = {}) {
-  const epDataList = await collectProductEpData(options);
-  return buildEpFileContent(epDataList);
+  const { included, excluded } = await collectProductEpData(options);
+  const main = await buildEpFileContent(included);
+  const excludedFile = await buildEpFileContent(excluded);
+  return { main, excluded: excludedFile };
 }
 
 /**

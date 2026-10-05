@@ -18,6 +18,7 @@
     return `${get("year")}-${get("month")}-${get("day")} ${get("dayPeriod")} ${get("hour").padStart(2, "0")}:${get("minute")}`;
   };
   const epPrimary = summary.epFiles[0];
+  const epExcluded = summary.epFiles.find((f) => f.label === "제외");
   // 비교용으로 늘 열어보는 경쟁사 EP. 고정값이라 템플릿에 둔다
   const MODETOUR_EP_URL = "https://staticservice.modetour.com/onbp/naver_ep/6352_naver_ep.txt";
 %>
@@ -143,6 +144,14 @@
                 ><%= epPrimary.url %></a>
               <% } else { %>
                 <span class="font-semibold text-ink-mute">FTP_BASE_URL 미설정</span>
+              <% } %>
+              <% if (epExcluded && epExcluded.url) { %>
+                <a
+                  href="<%= epExcluded.url %>"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="shrink-0 rounded-md bg-line px-1.5 py-0.5 text-[11px] font-semibold text-ink-sub hover:bg-line-strong hover:text-ink"
+                >제외</a>
               <% } %>
             </div>
 

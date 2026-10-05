@@ -1,4 +1,4 @@
-const { EP_FILENAME } = require("../config/env");
+const { EP_FILENAME, EP_FILENAME_EXCLUDED } = require("../config/env");
 const Product = require("../models/Product");
 const CronJob = require("../models/CronJob");
 const { CRON_JOB_TYPES } = CronJob;
@@ -106,15 +106,23 @@ async function claimCollectJob(startNo, lastNo) {
  *   전 상품 품절로 읽히므로, 수집이 비정상인 날에는 이전 파일을 유지한다
  */
 async function publishProductEpFile(logger = console) {
-  const epResult = await generateProductEpFile({ futureOnly: true });
+  const { main, excluded } = await generateProductEpFile({ futureOnly: true });
 
-  if (epResult.count === 0) {
+  if (main.count === 0) {
     logger.warn?.("EP 대상 상품이 0건이라 업로드를 건너뜁니다.");
-    return { count: 0, url: "", skippedReason: "no_ep_candidates" };
+    return { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: "no_ep_candidates" };
   }
 
-  const url = await uploadEpFileToFtp(epResult.content, EP_FILENAME);
-  return { count: epResult.count, url, skippedReason: "" };
+  const url = await uploadEpFileToFtp(main.content, EP_FILENAME);
+  const excludedUrl = await uploadEpFileToFtp(excluded.content, EP_FILENAME_EXCLUDED);
+
+  return {
+    count: main.count,
+    url,
+    excludedCount: excluded.count,
+    excludedUrl,
+    skippedReason: "",
+  };
 }
 
 /**
@@ -175,14 +183,14 @@ async function runProductCollectJob(logger = console, options = {}) {
   }
 
   // 요구사항: 수집 후에는 결과와 무관하게 항상 EP 파일을 생성한다.
-  let ep = { count: 0, url: "", skippedReason: "" };
+  let ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: "" };
   let epError = null;
 
   try {
     ep = await publishProductEpFile(logger);
   } catch (err) {
     epError = err;
-    ep = { count: 0, url: "", skippedReason: `error: ${err.message}` };
+    ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: `error: ${err.message}` };
     logger.error?.({ err: err.message }, "EP 생성/업로드 실패");
   }
 
@@ -278,14 +286,14 @@ async function runProductRefreshJob(logger = console, options = {}) {
 
   // 수집 작업과 같다. 재검증이 중간에 멈췄어도 EP 생성·업로드는 항상 시도하고,
   // EP가 실패해도 재검증 결과(verifiedAt 갱신)는 이미 DB에 남아 있다.
-  let ep = { count: 0, url: "", skippedReason: "" };
+  let ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: "" };
   let epError = null;
 
   try {
     ep = await publishProductEpFile(logger);
   } catch (err) {
     epError = err;
-    ep = { count: 0, url: "", skippedReason: `error: ${err.message}` };
+    ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: `error: ${err.message}` };
     logger.error?.({ err: err.message }, "EP 생성/업로드 실패");
   }
 

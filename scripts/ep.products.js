@@ -10,8 +10,7 @@ async function main() {
 
   console.log("\x1b[36m[ep]\x1b[0m Product 기준 EP 파일 생성 시작");
 
-  // 오늘 이후 출발(departureDate) 상품만 포함한다.
-  const result = await generateProductEpFile({ futureOnly: true });
+  const { main: mainFile, excluded } = await generateProductEpFile({ futureOnly: true });
 
   const distDir = path.resolve(__dirname, "../dist");
   if (!fs.existsSync(distDir)) {
@@ -19,11 +18,13 @@ async function main() {
     console.log("\x1b[90m[ep]\x1b[0m /dist 폴더 생성됨");
   }
 
-  const outputPath = path.join(distDir, "ire_naver_ep.products.txt");
-  fs.writeFileSync(outputPath, result.content, "utf8");
+  const mainPath = path.join(distDir, "ire_naver_ep.products.txt");
+  fs.writeFileSync(mainPath, mainFile.content, "utf8");
+  console.log(`\x1b[32m[ep]\x1b[0m 완료: ${mainFile.count}개 상품 → ${mainPath}`);
 
-  console.log(`\x1b[32m[ep]\x1b[0m 완료: ${result.count}개 상품`);
-  console.log(`\x1b[32m[ep]\x1b[0m 저장 경로: ${outputPath}`);
+  const excludedPath = path.join(distDir, "ire_naver_ep.products.excluded.txt");
+  fs.writeFileSync(excludedPath, excluded.content, "utf8");
+  console.log(`\x1b[32m[ep]\x1b[0m 제외: ${excluded.count}개 상품 → ${excludedPath}`);
 }
 
 main()
