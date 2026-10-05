@@ -174,6 +174,38 @@ async function generateEpFile(options = {}) {
   return buildEpFileContent(epDataList);
 }
 
+// EP 생성에 실제로 쓰이는 epData 서브셋만 가져온다.
+// 수집 단계가 저장한 brand_certification·transport_code 등 EP 출력에 안 쓰는 필드는
+// 제외해 Mongo→Node 전송량을 줄인다. 데이터가 10만 건을 넘어가면서 full epData를
+// 그대로 가져오는 쿼리가 Vercel 300초 안에 못 끝나 EP 생성이 밀렸다.
+const EP_FETCH_PROJECTION = {
+  _id: 0,
+  departureDate: 1,
+  "epData.id": 1,
+  "epData.title": 1,
+  "epData.price_pc": 1,
+  "epData.benefit_price": 1,
+  "epData.normal_price": 1,
+  "epData.link": 1,
+  "epData.mobile_link": 1,
+  "epData.image_link": 1,
+  "epData.add_image_link": 1,
+  "epData.category_name1": 1,
+  "epData.category_name2": 1,
+  "epData.category_name3": 1,
+  "epData.category_name4": 1,
+  "epData.naver_category": 1,
+  "epData.brand": 1,
+  "epData.maker": 1,
+  "epData.origin": 1,
+  "epData.coupon": 1,
+  "epData.search_tag": 1,
+  "epData.shipping": 1,
+  "epData.attribute": 1,
+  "epData.gender": 1,
+  "epData.transport_name": 1,
+};
+
 async function collectProductEpData(options = {}) {
   const { futureOnly = true } = options;
   const query = { epData: { $exists: true, $ne: null } };
@@ -184,7 +216,7 @@ async function collectProductEpData(options = {}) {
     query.departureDate = { $gte: today };
   }
 
-  const products = await Product.find(query, { epData: 1, departureDate: 1, _id: 0 }).lean();
+  const products = await Product.find(query, EP_FETCH_PROJECTION).lean();
 
   const grouped = new Map();
   for (const product of products) {
