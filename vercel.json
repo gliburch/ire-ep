@@ -7,11 +7,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 0 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 0 * * *"
+      "schedule": "30 0 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -19,11 +15,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 1 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 1 * * *"
+      "schedule": "30 1 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -31,11 +23,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 2 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 2 * * *"
+      "schedule": "30 2 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -43,11 +31,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 3 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 3 * * *"
+      "schedule": "30 3 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -55,11 +39,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 4 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 4 * * *"
+      "schedule": "30 4 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -67,11 +47,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 5 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 5 * * *"
+      "schedule": "30 5 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -79,11 +55,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 6 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 6 * * *"
+      "schedule": "30 6 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -91,11 +63,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 7 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 7 * * *"
+      "schedule": "30 7 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -103,11 +71,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 8 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 8 * * *"
+      "schedule": "30 8 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -115,11 +79,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 9 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 9 * * *"
+      "schedule": "30 9 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -127,11 +87,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 10 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 10 * * *"
+      "schedule": "30 10 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -139,11 +95,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 11 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 11 * * *"
+      "schedule": "30 11 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -151,11 +103,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 12 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 12 * * *"
+      "schedule": "30 12 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -163,11 +111,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 13 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 13 * * *"
+      "schedule": "30 13 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -175,11 +119,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 14 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 14 * * *"
+      "schedule": "30 14 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -187,11 +127,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 15 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 15 * * *"
+      "schedule": "30 15 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -199,11 +135,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 16 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 16 * * *"
+      "schedule": "30 16 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -211,11 +143,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 17 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 17 * * *"
+      "schedule": "30 17 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -223,11 +151,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 18 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 18 * * *"
+      "schedule": "30 18 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -235,11 +159,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 19 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 19 * * *"
+      "schedule": "30 19 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -247,11 +167,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 20 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 20 * * *"
+      "schedule": "30 20 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -259,11 +175,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 21 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 21 * * *"
+      "schedule": "30 21 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -271,11 +183,7 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 22 * * *"
-    },
-    {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 22 * * *"
+      "schedule": "30 22 * * *"
     },
     {
       "path": "/api/cron/collect-product",
@@ -283,11 +191,183 @@
     },
     {
       "path": "/api/cron/collect-product",
-      "schedule": "20 23 * * *"
+      "schedule": "30 23 * * *"
     },
     {
-      "path": "/api/cron/collect-product",
-      "schedule": "40 23 * * *"
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/generate-ep",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "15 23 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "30 23 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "45 23 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "15 0 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "45 0 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "15 1 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "30 1 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "45 1 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "15 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "45 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "15 3 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product",
+      "schedule": "45 3 * * *"
     },
     {
       "path": "/api/cron/collect-product-master",
@@ -308,86 +388,6 @@
     {
       "path": "/api/cron/collect-product-master",
       "schedule": "20 14 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "15 8 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "30 8 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "45 8 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "15 9 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "30 9 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "45 9 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "0 10 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "15 10 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "30 10 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "45 10 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "0 11 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "15 11 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "30 11 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "45 11 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "15 12 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "30 12 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product",
-      "schedule": "45 12 * * *"
     }
   ],
   "functions": {
@@ -398,6 +398,9 @@
       "maxDuration": 300
     },
     "api/cron/refresh-product.js": {
+      "maxDuration": 300
+    },
+    "api/cron/generate-ep.js": {
       "maxDuration": 300
     }
   }

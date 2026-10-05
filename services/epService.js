@@ -108,6 +108,11 @@ function productToTsvRow(epData, headers = EP_HEADERS) {
  * - 제목 덮어쓰기 시트에 id가 있으면 그 title로 바꿔 출력한다
  * - 시트 제목은 sanitizeTitle을 타지 않는다(수동 값을 그대로 쓰는 것이 목적)
  */
+// EP 파일 맨 앞에 붙이는 UTF-8 BOM.
+// 응답에 charset이 없으면 브라우저가 바이트로 인코딩을 추측해 한글이 깨진다.
+// 네이버가 받는 파일 내용에는 영향이 없고, 사람이 열어볼 때만 효과가 있다.
+const UTF8_BOM = "\uFEFF";
+
 async function buildEpFileContent(epDataList, headers = EP_HEADERS) {
   const overrides = await getTitleOverrides();
   const matchedIds = new Set();
@@ -133,7 +138,7 @@ async function buildEpFileContent(epDataList, headers = EP_HEADERS) {
   }
 
   return {
-    content: [headerRow, ...dataRows].join("\n"),
+    content: UTF8_BOM + [headerRow, ...dataRows].join("\n"),
     count: epDataList.length,
     overriddenCount: matchedIds.size,
     unmatchedOverrideIds: unmatchedIds,

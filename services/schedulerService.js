@@ -36,19 +36,9 @@ const PRODUCT_MASTER_BATCH_WINDOW_MS = 6 * 60 * 60 * 1000;
 // Vercel 함수 실행 한도(vercel.json의 maxDuration과 같은 값).
 const FUNCTION_LIMIT_MS = 300_000;
 
-// EP 생성·업로드 몫으로 남겨두는 시간.
-const EP_RESERVE_MS = 90_000;
-
-// 수집에 쓸 수 있는 시간. 한도에 걸려 강제 종료되면 EP 생성까지 가지 못하고
-// 어디까지 수집했는지도 남지 않으므로, 그 전에 스스로 멈춘다.
-const TIME_BUDGET_MS = FUNCTION_LIMIT_MS - EP_RESERVE_MS;
-
-// 재검증 뒤 EP 생성·업로드에 남겨두는 시간.
-// 실측상 EP 생성만 100초(8만여 건)라 수집 쪽 EP_RESERVE_MS(90초)로는 모자란다.
-const REFRESH_EP_RESERVE_MS = 150_000;
-
-// 재검증에 쓸 수 있는 시간. 다 쓰면 묶음 사이에서 멈추고 EP 단계로 넘어간다.
-const REFRESH_TIME_BUDGET_MS = FUNCTION_LIMIT_MS - REFRESH_EP_RESERVE_MS;
+// 수집·재검증은 EP 생성과 분리되어 각자 함수 한도를 온전히 쓴다.
+const TIME_BUDGET_MS = FUNCTION_LIMIT_MS;
+const REFRESH_TIME_BUDGET_MS = FUNCTION_LIMIT_MS;
 
 /**
  * 이어서 수집할 시작 번호를 정한다.
@@ -126,9 +116,9 @@ async function publishProductEpFile(logger = console) {
 }
 
 /**
- * 크론 1회 분량의 "Product 수집" 작업을 수행한다(상품 수집 + EP 생성).
+ * 크론 1회 분량의 "Product 수집" 작업을 수행한다.
  * - 수집 범위: DB의 최대 productNo 다음 번호부터 batchSize개
- * - 수집이 중단되거나 실패해도 EP 생성·업로드는 항상 시도한다
+ * - EP 생성·업로드는 별도 크론(generate-ep)이 담당한다
  */
 async function runProductCollectJob(logger = console, options = {}) {
   const {
@@ -159,7 +149,6 @@ async function runProductCollectJob(logger = console, options = {}) {
     "상품 수집 시작",
   );
 
-  // 함수 실행시간 제한(Vercel Hobby 300초) 안에서 EP 생성·업로드 시간을 남겨둔다.
   const deadline = Date.now() + timeBudgetMs;
   let results = null;
   let scrapeError = null;
@@ -176,22 +165,9 @@ async function runProductCollectJob(logger = console, options = {}) {
       },
     });
   } catch (err) {
-    // FTP 용량 부족 등으로 중단된 경우에도 여기까지의 집계는 남아 있다.
     scrapeError = err;
     results = err.results || null;
     logger.error?.({ err: err.message }, "상품 수집이 중단되었습니다.");
-  }
-
-  // 요구사항: 수집 후에는 결과와 무관하게 항상 EP 파일을 생성한다.
-  let ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: "" };
-  let epError = null;
-
-  try {
-    ep = await publishProductEpFile(logger);
-  } catch (err) {
-    epError = err;
-    ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: `error: ${err.message}` };
-    logger.error?.({ err: err.message }, "EP 생성/업로드 실패");
   }
 
   const processedCount = results?.processed ?? 0;
@@ -214,8 +190,7 @@ async function runProductCollectJob(logger = console, options = {}) {
     processedCount,
     stoppedEarly: Boolean(results?.stoppedEarly),
     results: results || null,
-    ep,
-    error: [scrapeError?.message, epError?.message].filter(Boolean).join(" | ") || undefined,
+    error: scrapeError?.message || undefined,
   };
 
   logger.info?.(summary, "수집 작업 완료");
@@ -229,7 +204,7 @@ async function runProductCollectJob(logger = console, options = {}) {
  * - 구간을 정하지 않으므로 크론이 몇 번 돌든 자연히 이어지고, 한 바퀴를 돌면
  *   가장 오래 안 본 것이 다시 앞으로 온다. 순서가 흔들려도 결과는 같으므로
  *   Hobby 크론의 ±59분 오차나 실행 순서 뒤바뀜에 영향을 받지 않는다
- * - 수집 작업과 똑같이, 끝나면 EP 파일을 만들어 올린다
+ * - EP 생성·업로드는 별도 크론(generate-ep)이 담당한다
  */
 async function runProductRefreshJob(logger = console, options = {}) {
   const {
@@ -284,19 +259,6 @@ async function runProductRefreshJob(logger = console, options = {}) {
     },
   });
 
-  // 수집 작업과 같다. 재검증이 중간에 멈췄어도 EP 생성·업로드는 항상 시도하고,
-  // EP가 실패해도 재검증 결과(verifiedAt 갱신)는 이미 DB에 남아 있다.
-  let ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: "" };
-  let epError = null;
-
-  try {
-    ep = await publishProductEpFile(logger);
-  } catch (err) {
-    epError = err;
-    ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: `error: ${err.message}` };
-    logger.error?.({ err: err.message }, "EP 생성/업로드 실패");
-  }
-
   const summary = {
     skipped: false,
     job: CRON_JOB_TYPES.PRODUCT_CHANGE_TRACK,
@@ -306,13 +268,26 @@ async function runProductRefreshJob(logger = console, options = {}) {
     processedCount: processed,
     stoppedEarly,
     results,
-    ep,
-    error: epError?.message || undefined,
   };
 
   logger.info?.(summary, "Product 재검증 완료");
 
   return summary;
+}
+
+/**
+ * EP 파일을 생성해 FTP에 올리기만 하는 전용 크론 작업.
+ * 수집·재검증과 분리해 각 함수가 자기 한도를 온전히 쓰게 한다.
+ */
+async function runEpGenerateJob(logger = console) {
+  try {
+    const ep = await publishProductEpFile(logger);
+    logger.info?.(ep, "EP 생성 완료");
+    return { skipped: false, ...ep };
+  } catch (err) {
+    logger.error?.({ err: err.message }, "EP 생성/업로드 실패");
+    throw err;
+  }
 }
 
 /**
@@ -436,6 +411,7 @@ module.exports = {
   publishProductEpFile,
   runProductCollectJob,
   runProductRefreshJob,
+  runEpGenerateJob,
   resolveProductMasterBatchIndex,
   runProductMasterCollectJob,
 };
