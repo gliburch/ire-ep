@@ -17,7 +17,7 @@ const REFRESH_BATCH_SIZE = 5000;
 const REFRESH_CONCURRENCY = 20;
 
 // 크론이 겹쳐 떠도 같은 구간을 두 번 재검증하지 않도록 보는 창.
-// 시간당 4회로 촘촘해졌으므로 짧게 잡는다. 길면 정상 실행까지 걸러낸다.
+// 10분 간격으로 촘촘해졌으므로 짧게 잡는다. 길면 정상 실행까지 걸러낸다.
 // 재검증은 번호 구간이 아니라 "verifiedAt이 가장 오래된 N개"를 그때그때 집으므로
 // CronJob의 (job, startNo) 선점을 쓸 수 없다(선점할 번호가 없다). 대신 직전 실행
 // 시각으로 거른다. 잠금이 아니므로 밀리초 단위로 겹쳐 뜨면 뚫리지만, 그때 생기는
@@ -37,18 +37,14 @@ const PRODUCT_MASTER_BATCH_WINDOW_MS = 6 * 60 * 60 * 1000;
 const FUNCTION_LIMIT_MS = 300_000;
 
 // EP 생성·업로드 몫으로 남겨두는 시간.
-const EP_RESERVE_MS = 90_000;
+// M2에서는 EP 생성만 100초(8만여 건)라 수집 90초·재검증 150초로 갈라 잡았으나,
+// M10 전환 뒤 FTP 업로드까지 15초(9만9천 건)라 양쪽 모두 같은 값으로 둔다.
+const EP_RESERVE_MS = 30_000;
 
-// 수집에 쓸 수 있는 시간. 한도에 걸려 강제 종료되면 EP 생성까지 가지 못하고
-// 어디까지 수집했는지도 남지 않으므로, 그 전에 스스로 멈춘다.
+// 수집·재검증에 쓸 수 있는 시간. 한도에 걸려 강제 종료되면 EP 생성까지 가지 못하고
+// 어디까지 했는지도 남지 않으므로, 그 전에 스스로 멈춘다.
 const TIME_BUDGET_MS = FUNCTION_LIMIT_MS - EP_RESERVE_MS;
-
-// 재검증 뒤 EP 생성·업로드에 남겨두는 시간.
-// 실측상 EP 생성만 100초(8만여 건)라 수집 쪽 EP_RESERVE_MS(90초)로는 모자란다.
-const REFRESH_EP_RESERVE_MS = 150_000;
-
-// 재검증에 쓸 수 있는 시간. 다 쓰면 묶음 사이에서 멈추고 EP 단계로 넘어간다.
-const REFRESH_TIME_BUDGET_MS = FUNCTION_LIMIT_MS - REFRESH_EP_RESERVE_MS;
+const REFRESH_TIME_BUDGET_MS = FUNCTION_LIMIT_MS - EP_RESERVE_MS;
 
 /**
  * 이어서 수집할 시작 번호를 정한다.
