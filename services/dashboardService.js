@@ -197,7 +197,6 @@ async function getSummary() {
 
   const [
     productCount,
-    productWithEpCount,
     futureProductCount,
     productMasterCount,
     packageCount,
@@ -206,7 +205,6 @@ async function getSummary() {
     latestCollectJob,
   ] = await Promise.all([
     Product.countDocuments({}),
-    Product.countDocuments({ epData: { $exists: true, $ne: null } }),
     Product.countDocuments({
       epData: { $exists: true, $ne: null },
       departureDate: { $gte: today },
@@ -221,7 +219,6 @@ async function getSummary() {
   return {
     counts: {
       products: productCount,
-      productsWithEp: productWithEpCount,
       // 오늘 이후 출발 = 실제 EP 파일에 실리는 모수
       epCandidates: futureProductCount,
       productMasters: productMasterCount,
