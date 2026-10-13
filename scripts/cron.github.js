@@ -15,9 +15,9 @@ function parseArg(name, fallback) {
   return hit ? Number(hit.slice(prefix.length)) : fallback;
 }
 
-async function refresh(minutes) {
+async function refresh(minutes, limit) {
   const result = await runProductRefreshJob(console, {
-    limit: 50000,
+    limit,
     timeBudgetMs: minutes * MINUTE,
   });
   console.log(
@@ -51,15 +51,15 @@ async function ep() {
 }
 
 const TASKS = {
-  refresh: () => refresh(parseArg("minutes", 25)),
-  collect: () => collect(parseArg("minutes", 25)),
+  refresh: () => refresh(parseArg("minutes", 150), parseArg("limit", 150000)),
+  collect: () => collect(parseArg("minutes", 20)),
   ep,
 };
 
 async function main() {
   const task = TASKS[process.argv[2]];
   if (!task) {
-    throw new Error(`사용법: node scripts/cron.github.js <${Object.keys(TASKS).join("|")}> [--minutes=N]`);
+    throw new Error(`사용법: node scripts/cron.github.js <${Object.keys(TASKS).join("|")}> [--minutes=N] [--limit=N]`);
   }
 
   await connectDB(console);

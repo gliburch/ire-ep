@@ -12,7 +12,7 @@ concurrency:
 jobs:
   refresh-and-collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 58
+    timeout-minutes: 200
     env:
       NODE_ENV: production
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
@@ -37,8 +37,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --omit=dev
-      - run: node scripts/cron.github.js refresh --minutes=25
-      - run: node scripts/cron.github.js collect --minutes=25
+      - run: node scripts/cron.github.js refresh --minutes=150 --limit=150000
+      - run: node scripts/cron.github.js collect --minutes=20
         if: always()
       - run: node scripts/cron.github.js ep
         if: always()
