@@ -1,5 +1,8 @@
 const { prepareCronRequest } = require("./_shared");
-const { runProductCollectJob } = require("../../services/schedulerService");
+const {
+  runProductCollectJob,
+  tryPublishProductEpFile,
+} = require("../../services/schedulerService");
 
 module.exports = async (req, res) => {
   try {
@@ -11,10 +14,12 @@ module.exports = async (req, res) => {
     console.log(`[cron] Product 수집 시작 (schedule=${schedule})`);
 
     const result = await runProductCollectJob(console);
+    const ep = result.skipped ? undefined : await tryPublishProductEpFile(console);
     return res.status(200).json({
-      success: !result.skipped && !result.error,
+      success: !result.skipped && !result.error && !ep?.error,
       schedule,
       ...result,
+      ep,
     });
   } catch (err) {
     console.error("Cron Product 수집 실패:", err);

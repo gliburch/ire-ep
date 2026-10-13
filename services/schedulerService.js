@@ -122,9 +122,29 @@ async function publishProductEpFile(logger = console) {
 }
 
 /**
- * 크론 1회 분량의 "Product 수집" 작업을 수행한다(상품 수집 + EP 생성).
+ * publishProductEpFile과 같되, 실패해도 던지지 않고 결과에 error를 담아 돌려준다.
+ * - 수집·재검증 결과는 이미 DB에 남았으므로 EP 실패가 크론 응답 전체를 깨뜨리지 않게 한다
+ */
+async function tryPublishProductEpFile(logger = console) {
+  try {
+    return await publishProductEpFile(logger);
+  } catch (err) {
+    logger.error?.({ err: err.message }, "EP 생성/업로드 실패");
+    return {
+      count: 0,
+      url: "",
+      excludedCount: 0,
+      excludedUrl: "",
+      skippedReason: `error: ${err.message}`,
+      error: err.message,
+    };
+  }
+}
+
+/**
+ * 크론 1회 분량의 "Product 수집" 작업을 수행한다.
  * - 수집 범위: DB의 최대 productNo 다음 번호부터 batchSize개
- * - 수집이 중단되거나 실패해도 EP 생성·업로드는 항상 시도한다
+ * - EP 생성·업로드는 하지 않는다. 호출하는 쪽이 정한다
  */
 async function runProductCollectJob(logger = console, options = {}) {
   const {
@@ -178,18 +198,6 @@ async function runProductCollectJob(logger = console, options = {}) {
     logger.error?.({ err: err.message }, "상품 수집이 중단되었습니다.");
   }
 
-  // 요구사항: 수집 후에는 결과와 무관하게 항상 EP 파일을 생성한다.
-  let ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: "" };
-  let epError = null;
-
-  try {
-    ep = await publishProductEpFile(logger);
-  } catch (err) {
-    epError = err;
-    ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: `error: ${err.message}` };
-    logger.error?.({ err: err.message }, "EP 생성/업로드 실패");
-  }
-
   const processedCount = results?.processed ?? 0;
   // 중간에 멈췄으면(시간 예산/FTP 이상) 실제로 끝낸 지점까지만 남긴다.
   // 그래야 다음 실행이 멈춘 자리에서 이어받는다.
@@ -210,8 +218,7 @@ async function runProductCollectJob(logger = console, options = {}) {
     processedCount,
     stoppedEarly: Boolean(results?.stoppedEarly),
     results: results || null,
-    ep,
-    error: [scrapeError?.message, epError?.message].filter(Boolean).join(" | ") || undefined,
+    error: scrapeError?.message,
   };
 
   logger.info?.(summary, "수집 작업 완료");
@@ -225,7 +232,7 @@ async function runProductCollectJob(logger = console, options = {}) {
  * - 구간을 정하지 않으므로 크론이 몇 번 돌든 자연히 이어지고, 한 바퀴를 돌면
  *   가장 오래 안 본 것이 다시 앞으로 온다. 순서가 흔들려도 결과는 같으므로
  *   Hobby 크론의 ±59분 오차나 실행 순서 뒤바뀜에 영향을 받지 않는다
- * - 수집 작업과 똑같이, 끝나면 EP 파일을 만들어 올린다
+ * - 수집 작업과 마찬가지로 EP 생성·업로드는 하지 않는다
  */
 async function runProductRefreshJob(logger = console, options = {}) {
   const {
@@ -280,19 +287,6 @@ async function runProductRefreshJob(logger = console, options = {}) {
     },
   });
 
-  // 수집 작업과 같다. 재검증이 중간에 멈췄어도 EP 생성·업로드는 항상 시도하고,
-  // EP가 실패해도 재검증 결과(verifiedAt 갱신)는 이미 DB에 남아 있다.
-  let ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: "" };
-  let epError = null;
-
-  try {
-    ep = await publishProductEpFile(logger);
-  } catch (err) {
-    epError = err;
-    ep = { count: 0, url: "", excludedCount: 0, excludedUrl: "", skippedReason: `error: ${err.message}` };
-    logger.error?.({ err: err.message }, "EP 생성/업로드 실패");
-  }
-
   const summary = {
     skipped: false,
     job: CRON_JOB_TYPES.PRODUCT_CHANGE_TRACK,
@@ -302,8 +296,6 @@ async function runProductRefreshJob(logger = console, options = {}) {
     processedCount: processed,
     stoppedEarly,
     results,
-    ep,
-    error: epError?.message || undefined,
   };
 
   logger.info?.(summary, "Product 재검증 완료");
@@ -430,6 +422,7 @@ async function runProductMasterCollectJob(logger = console, options = {}) {
 module.exports = {
   resolveNextStartNo,
   publishProductEpFile,
+  tryPublishProductEpFile,
   runProductCollectJob,
   runProductRefreshJob,
   resolveProductMasterBatchIndex,
