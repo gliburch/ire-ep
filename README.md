@@ -31,8 +31,7 @@ npm run dev                  # 헬스체크 서버 (GET /, /health)
 | 명령어 | 설명 |
 | --- | --- |
 | `npm run scrape:productMasters:<env>` | GNB 대상 전체 ProductMaster 수집/저장 |
-| `npm run scrape:products:<env> -- <productNo>` | 단일 Product 수집/저장 |
-| `npm run scrape:products-range:<env> -- <startNo> [count]` | productNo 범위 순차 수집 (기본 1000개) |
+| `npm run scrape:products:<env> -- <productNo> [count]` | count 없으면 단일 수집, 있으면 productNo부터 count개 순차 수집 |
 | `npm run ep:productMasters:<env>` | DB의 ProductMaster 기준 EP를 `dist/`에 생성 |
 | `npm run ep:products:<env>` | 오늘 이후 출발 Product 기준 EP를 `dist/`에 생성 |
 | `npm run ep:packages:<env>` | Package 기준 EP를 `dist/`에 생성 |

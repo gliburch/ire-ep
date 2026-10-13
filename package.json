@@ -9,8 +9,6 @@
     "db:setup": "node scripts/setupDb.js",
     "scrape:products:dev": "node scripts/products.js",
     "scrape:products:prd": "NODE_ENV=production node scripts/products.js",
-    "scrape:products-range:dev": "node scripts/products-range.js",
-    "scrape:products-range:prd": "NODE_ENV=production node scripts/products-range.js",
     "scrape:productMasters:dev": "node scripts/productMasters.js",
     "scrape:productMasters:prd": "NODE_ENV=production node scripts/productMasters.js",
     "ep:productMasters:dev": "node scripts/ep.productMasters.js",
@@ -22,6 +20,7 @@
     "refresh:products:dev": "node scripts/refresh.products.js",
     "refresh:products:prd": "NODE_ENV=production node scripts/refresh.products.js",
     "uploadEp": "node scripts/uploadEp.js",
+    "cron:github": "NODE_ENV=production node scripts/cron.github.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
