@@ -136,7 +136,7 @@ async function runProductCollectJob(logger = console, options = {}) {
 
   if (!startNo) {
     logger.error?.(
-      "이어받을 기준이 없습니다. products가 비어 있으면 scripts/products.js -- <startNo> <count>로 첫 구간을 먼저 수집하세요.",
+      "이어받을 기준이 없습니다. products가 비어 있으면 scripts/scrape.products.js -- <startNo> <count>로 첫 구간을 먼저 수집하세요.",
     );
     return { skipped: true, reason: "no_start_no" };
   }
