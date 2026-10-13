@@ -20,9 +20,21 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --omit=dev
-      - run: printf '%s' "$ENV_FILE" > .env
-        env:
-          ENV_FILE: ${{ secrets.ENV_FILE }}
       - run: node scripts/cron.github.js --refresh-minutes=25 --collect-minutes=25
         env:
           NODE_ENV: production
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_BASE_URL: ${{ secrets.FTP_BASE_URL }}
+          MODETOUR_API_KEY: ${{ secrets.MODETOUR_API_KEY }}
+          MODETOUR_WEBSITE_NO: ${{ secrets.MODETOUR_WEBSITE_NO }}
+          MODETOUR_COMPANY_NO: ${{ secrets.MODETOUR_COMPANY_NO }}
+          MODETOUR_DEVICE_TYPE: ${{ secrets.MODETOUR_DEVICE_TYPE }}
+          PRODUCT_MASTER_SCRAPE_MONTHS: ${{ vars.PRODUCT_MASTER_SCRAPE_MONTHS }}
+          EP_OVERRIDE_SHEET_URL: ${{ secrets.EP_OVERRIDE_SHEET_URL }}
+          EP_MAX_ITEMS: ${{ vars.EP_MAX_ITEMS }}
+          EP_FILENAME: ${{ vars.EP_FILENAME }}
+          EP_FILENAME_EXCLUDED: ${{ vars.EP_FILENAME_EXCLUDED }}

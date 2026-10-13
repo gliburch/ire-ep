@@ -10,7 +10,6 @@ dotenv.config({
 const {
   MONGODB_URI,
   MONGODB_DB,
-  PORT,
   FTP_HOST,
   FTP_USER,
   FTP_PASSWORD,
@@ -31,7 +30,6 @@ const {
 const required = {
   MONGODB_URI,
   MONGODB_DB,
-  PORT,
   FTP_HOST,
   FTP_USER,
   FTP_PASSWORD,
@@ -40,8 +38,6 @@ const required = {
   MODETOUR_WEBSITE_NO,
   MODETOUR_COMPANY_NO,
   MODETOUR_DEVICE_TYPE,
-  CRON_SECRET,
-  CRON_TIMEZONE,
   PRODUCT_MASTER_SCRAPE_MONTHS,
   EP_OVERRIDE_SHEET_URL,
   EP_FILENAME,
@@ -59,6 +55,9 @@ if (missing.length > 0) {
 
 module.exports = {
   ...required,
+  // Vercel 크론 전용이라 GitHub Actions 등에서는 비어 있을 수 있다.
+  CRON_SECRET,
+  CRON_TIMEZONE,
   // EP 한 번에 담을 최대 상품 수. 전량을 담으면 생성이 함수 실행시간 한도를 넘는다.
   EP_MAX_ITEMS: Number(EP_MAX_ITEMS),
 };
