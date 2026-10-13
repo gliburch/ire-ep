@@ -19,7 +19,6 @@
     "ep:packages:prd": "NODE_ENV=production node scripts/ep.packages.js",
     "refresh:products:dev": "node scripts/refresh.products.js",
     "refresh:products:prd": "NODE_ENV=production node scripts/refresh.products.js",
-    "uploadEp": "node scripts/uploadEp.js",
     "cron:github": "NODE_ENV=production node scripts/cron.github.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

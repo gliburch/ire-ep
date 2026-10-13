@@ -212,29 +212,6 @@ async function uploadEpFileToFtp(content, filename = EP_FILENAME) {
 }
 
 /**
- * 로컬 EP 파일을 그대로 FTP에 업로드
- * - 파일이 크므로 메모리에 올리지 않고 디스크에서 바로 스트리밍한다
- * @param {string} localPath 업로드할 로컬 파일 경로
- * @param {string} filename EP 디렉터리에 저장될 파일명
- * @param {(info: {bytes: number}) => void} [onProgress]
- */
-async function uploadEpFileFromPath(localPath, filename, onProgress) {
-  const remotePath = `${EP_DIR}/${filename}`;
-
-  const ftpClient = await createFtpClient();
-  try {
-    if (onProgress) {
-      ftpClient.trackProgress((info) => onProgress(info));
-    }
-    await ftpClient.uploadFrom(localPath, remotePath);
-    return `${FTP_BASE_URL}/ep/${filename}`;
-  } finally {
-    ftpClient.trackProgress();
-    ftpClient.close();
-  }
-}
-
-/**
  * 캐시 초기화
  */
 function resetImageUploadCache() {
@@ -250,6 +227,5 @@ module.exports = {
   isFtpQuotaError,
   uploadImageToFtp,
   uploadEpFileToFtp,
-  uploadEpFileFromPath,
   resetImageUploadCache,
 };
