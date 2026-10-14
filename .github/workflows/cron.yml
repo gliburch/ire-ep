@@ -2,17 +2,28 @@ name: cron
 
 on:
   schedule:
-    - cron: "30 23 * * *"
+    - cron: "0 23 * * *" # 08:00 KST — refresh + ep
+    - cron: "0 5 * * *"  # 14:00 KST — collect + ep
+    - cron: "0 11 * * *" # 20:00 KST — refresh + ep
+    - cron: "0 17 * * *" # 02:00 KST — collect + ep
   workflow_dispatch:
+    inputs:
+      task:
+        description: 실행할 작업
+        type: choice
+        default: refresh
+        options:
+          - refresh
+          - collect
 
 concurrency:
   group: cron
   cancel-in-progress: false
 
 jobs:
-  refresh-and-collect:
+  run:
     runs-on: ubuntu-latest
-    timeout-minutes: 200
+    timeout-minutes: 240
     env:
       NODE_ENV: production
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
@@ -37,8 +48,20 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --omit=dev
-      - run: node scripts/cron.github.js refresh --minutes=150 --limit=150000
-      - run: node scripts/cron.github.js collect --minutes=20
-        if: always()
+
+      - name: Determine task
+        id: pick
+        run: |
+          case "${{ github.event.schedule }}" in
+            "0 23 * * *"|"0 11 * * *") task=refresh ;;
+            "0 5 * * *"|"0 17 * * *") task=collect ;;
+            *) task="${{ github.event.inputs.task }}" ;;
+          esac
+          echo "task=$task" >> "$GITHUB_OUTPUT"
+
+      - run: node scripts/cron.github.js refresh --minutes=180 --limit=150000
+        if: steps.pick.outputs.task == 'refresh'
+      - run: node scripts/cron.github.js collect --minutes=60
+        if: steps.pick.outputs.task == 'collect'
       - run: node scripts/cron.github.js ep
         if: always()
