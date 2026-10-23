@@ -200,9 +200,9 @@ async function getSummary() {
     futureProductCount,
     productMasterCount,
     packageCount,
-    latestCreated,
     latestUpdated,
     latestCollectJob,
+    latestRefreshJob,
   ] = await Promise.all([
     Product.countDocuments({}),
     Product.countDocuments({
@@ -211,9 +211,9 @@ async function getSummary() {
     }),
     ProductMaster.countDocuments({}),
     Package.countDocuments({}),
-    Product.findOne({}).sort({ createdAt: -1 }).select("createdAt").lean(),
     Product.findOne({}).sort({ updatedAt: -1 }).select("updatedAt").lean(),
     CronJob.findOne({ job: CRON_JOB_TYPES.PRODUCT_COLLECT }).sort({ created_at: -1 }).lean(),
+    CronJob.findOne({ job: CRON_JOB_TYPES.PRODUCT_CHANGE_TRACK }).sort({ created_at: -1 }).lean(),
   ]);
 
   return {
@@ -224,7 +224,6 @@ async function getSummary() {
       productMasters: productMasterCount,
       packages: packageCount,
     },
-    latestCollectedAt: latestCreated?.createdAt || null,
     latestUpdatedAt: latestUpdated?.updatedAt || null,
     latestCronJob: latestCollectJob
       ? {
@@ -234,6 +233,7 @@ async function getSummary() {
           ranAt: latestCollectJob.created_at || null,
         }
       : null,
+    latestRefreshAt: latestRefreshJob?.created_at || null,
     epFiles: getEpFiles(),
     timezone: CRON_TIMEZONE,
     generatedAt: new Date(),

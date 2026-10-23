@@ -113,18 +113,21 @@
             <% }) %>
 
             <span aria-hidden="true" class="text-line-strong">|</span>
-            <% if (summary.latestCronJob) { %>
-              <span class="whitespace-nowrap">
-                최근 크론
+            <span class="whitespace-nowrap">
+              최근 cron 수집
+              <% if (summary.latestCronJob) { %>
                 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCronJob.ranAt) %></span>
                 <% if (summary.latestCronJob.startNo) { %>
                   (<%= formatNumber(summary.latestCronJob.startNo) %>~<%= formatNumber(summary.latestCronJob.lastNo) %>)
                 <% } %>
-              </span>
-            <% } else { %>
-              <span class="whitespace-nowrap">최근 크론 <span class="font-semibold text-ink-sub">기록 없음</span></span>
-            <% } %>
-            <span class="whitespace-nowrap">최근 등록 <span class="font-semibold text-ink-sub"><%= formatDateTime(summary.latestCollectedAt) %></span></span>
+              <% } else { %>
+                <span class="font-semibold text-ink-sub">기록 없음</span>
+              <% } %>
+            </span>
+            <span class="whitespace-nowrap">
+              최근 cron 업데이트
+              <span class="font-semibold text-ink-sub"><%= summary.latestRefreshAt ? formatDateTime(summary.latestRefreshAt) : "기록 없음" %></span>
+            </span>
           </div>
 
           <!-- 3행: EP 주소. 링크로 바로 열 수 있게만 둔다 -->
