@@ -6,12 +6,26 @@ const {
   getChangeLogFeed,
   DEFAULT_PAGE_SIZE,
 } = require("../services/dashboardService");
+const { BASIC_AUTH_USER, BASIC_AUTH_PASSWORD } = require("../config/env");
 
 /**
  * 수집 현황 대시보드 페이지 플러그인.
  * - 화면과 화면 제어 스크립트는 EJS 템플릿 하나에 담고, 목록 데이터만 JSON API로 받아 갱신한다
  */
 async function pagesPlugin(fastify) {
+  fastify.addHook("onRequest", async (request, reply) => {
+    if (!BASIC_AUTH_USER || !BASIC_AUTH_PASSWORD) {
+      return reply.code(500).send({ error: "Missing BASIC_AUTH_USER or BASIC_AUTH_PASSWORD" });
+    }
+    const expected = `Basic ${Buffer.from(`${BASIC_AUTH_USER}:${BASIC_AUTH_PASSWORD}`).toString("base64")}`;
+    if (request.headers.authorization !== expected) {
+      return reply
+        .code(401)
+        .header("WWW-Authenticate", 'Basic realm="dashboard", charset="UTF-8"')
+        .send("Unauthorized");
+    }
+  });
+
   await fastify.register(require("@fastify/view"), {
     engine: { ejs },
     root: path.join(__dirname, "views"),
